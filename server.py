@@ -4,10 +4,8 @@ import datetime
 import json
 import os
 from pathlib import Path
-import sys
 
 from flask import Flask, request, jsonify
-from pyngrok import ngrok
 
 HERE = Path(__file__).resolve().parent
 DB_PATH = HERE / "contacts.json"
@@ -67,15 +65,5 @@ def list_contacts():
 
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
-    print(f"\n🚀 Starting RevenueBringer server on http://localhost:{port}\n")
-    
-    try:
-        # Create ngrok tunnel
-        public_url = ngrok.connect(port, "http")
-        print(f"✅ Public URL: {public_url}\n")
-        print("Share this URL with anyone to access your site publicly.\n")
-    except Exception as e:
-        print(f"⚠️  Could not create ngrok tunnel: {e}")
-        print(f"   Local access only at http://localhost:{port}\n")
-    
+    print(f"\n🚀 Starting RevenueBringer server on port {port}\n")
     app.run(host="0.0.0.0", port=port, debug=False)
