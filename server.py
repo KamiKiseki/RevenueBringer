@@ -1,16 +1,17 @@
 from __future__ import annotations
 
 import datetime
+import hmac
 import json
 import os
 from pathlib import Path
 
-from flask import Flask, request, jsonify
+from flask import Flask, abort, jsonify, request, send_from_directory
 
 HERE = Path(__file__).resolve().parent
 DB_PATH = HERE / "contacts.json"
 
-app = Flask(__name__, static_folder=str(HERE), static_url_path="")
+app = Flask(__name__, static_folder=None)
 
 
 def load_contacts() -> list[dict[str, str]]:
@@ -30,7 +31,12 @@ def save_contacts(entries: list[dict[str, str]]) -> None:
 
 @app.route("/", methods=["GET"])
 def index() -> str:
-    return app.send_static_file("index.html")
+    return send_from_directory(HERE, "index.html")
+
+
+@app.route("/style.css", methods=["GET"])
+def stylesheet():
+    return send_from_directory(HERE, "style.css")
 
 
 @app.route("/submit-contact", methods=["POST"])
@@ -60,6 +66,18 @@ def submit_contact():
 
 @app.route("/admin/contacts", methods=["GET"])
 def list_contacts():
+    expected_token = os.environ.get("ADMIN_CONTACTS_TOKEN")
+    if not expected_token:
+        abort(404)
+
+    provided_token = request.headers.get("X-Admin-Token", "")
+    auth_header = request.headers.get("Authorization", "")
+    if auth_header.startswith("Bearer "):
+        provided_token = auth_header.removeprefix("Bearer ").strip()
+
+    if not hmac.compare_digest(provided_token, expected_token):
+        abort(401)
+
     return jsonify(load_contacts())
 
 
