@@ -1,0 +1,14 @@
+Railway — Root Directory
+
+MAIN API SERVICE (hvac-engine / server.py):
+  In Railway → that service → Settings → Source (or Build):
+  Clear "Root Directory" completely (leave empty). The repo root must be used
+  so Railpack finds server.py, requirements.txt, railway.toml, railpack.json.
+
+OPTIONAL SECOND SERVICE (public marketing only):
+  Only if you created a separate service for the small Flask app in services/marketing:
+  Set Root Directory to exactly:  services/marketing
+  (That folder exists on branch master — if build still says missing, you are on
+  the wrong branch/repo or an old deploy.)
+
+Never set Root Directory to services/marketing on the main API service.

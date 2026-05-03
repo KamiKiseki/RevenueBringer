@@ -1,10 +1,15 @@
-New Railway service (marketing / public site) — use this folder only.
+IMPORTANT — Do not set "services/marketing" on your MAIN API service.
+That breaks the build (Railpack looks for a subfolder on the wrong service).
+Main API: Root Directory MUST be empty (repo root). See RAILWAY_BUILD.txt at repo root.
 
-In Railway:
-1) Project → New → Empty service (or "GitHub Repo" again).
-2) Connect the SAME repo (RevenueBringer / autoyieldsystems).
-3) Service settings → set Root Directory to:  services/marketing
-4) Deploy. Start command is already railway.toml: python run.py
-5) After the OLD site is removed from autoyieldsystems.com, attach the custom domain ONLY to this new service (not hvac-engine).
+---
 
-Root API (hvac-engine) stays on its own service with its own domain or Railway URL.
+Optional SECOND service (marketing / public site) — this folder only:
+
+1) Project → New → Empty service (or deploy repo again).
+2) Connect the SAME repo.
+3) On THIS new service only → Root Directory:  services/marketing
+4) Deploy. startCommand: python run.py (services/marketing/railway.toml)
+5) Attach autoyieldsystems.com here only after the old site is removed elsewhere.
+
+hvac-engine (API) stays at repo root with no Root Directory override.
