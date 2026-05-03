@@ -1153,6 +1153,45 @@ def health():
     return jsonify(out)
 
 
+@app.get("/command-center")
+def command_center_not_here():
+    """Reflex serves the Command Center on its own process/URL — this API does not mount that UI."""
+    body = (
+        "This URL path is for the Reflex Command Center UI.\n\n"
+        "This Railway service (hvac-engine) runs Flask (server.py) only — it does not serve Reflex pages.\n"
+        "Run the Reflex app separately (e.g. `reflex run` locally, or a second Railway service / Reflex Hosting)\n"
+        "and open the URL that Reflex gives you, usually with path /command-center on THAT host.\n\n"
+        "On THIS host, working endpoints include:  GET /  GET /health  (and POST /automation/*, /webhooks/*, etc.)\n"
+    )
+    return body, 200, {"Content-Type": "text/plain; charset=utf-8"}
+
+
+@app.errorhandler(404)
+def handle_404(_e):
+    """Replace generic Werkzeug HTML with a short hint (common mistake: Command Center on API host)."""
+    p = request.path
+    if p.startswith("/webhooks/") or p.startswith("/automation"):
+        return jsonify({"ok": False, "error": "not_found", "path": p}), 404
+    accept = (request.headers.get("Accept") or "").lower()
+    if "application/json" in accept:
+        return jsonify(
+            {
+                "ok": False,
+                "error": "not_found",
+                "path": p,
+                "hint": "Flask API only. Try GET /health . Command Center is Reflex — not on this host unless you add a Reflex service or proxy.",
+            }
+        ), 404
+    msg = (
+        f"404 — no route for: {p}\n\n"
+        "This service is the autoyieldsystems Flask API (hvac-engine).\n"
+        "Try:  GET /     and  GET /health\n"
+        "Command Center UI: run Reflex separately; it is not served at this path on this process.\n"
+        "See GET /command-center for a longer explanation.\n"
+    )
+    return msg, 404, {"Content-Type": "text/plain; charset=utf-8"}
+
+
 if __name__ == "__main__":
     init_db()
     port = int(os.environ.get("PORT", 8080))
