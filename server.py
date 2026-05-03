@@ -10,7 +10,6 @@ from flask import (
     Flask,
     abort,
     jsonify,
-    make_response,
     render_template,
     request,
     send_file,
@@ -1097,24 +1096,9 @@ def sanitize_notes():
     return jsonify({"ok": True, "cleaned_records": cleaned})
 
 
-def _no_cache(resp):
-    """Avoid stale HTML at CDN edge after deploy (Railway/Fastly)."""
-    resp.headers["Cache-Control"] = "no-store, no-cache, must-revalidate"
-    resp.headers["Pragma"] = "no-cache"
-    resp.headers["Expires"] = "0"
-    return resp
-
-
 @app.get("/")
 def public_landing():
-    """Marketing homepage — prefer `public_site/` (current bundle), then legacy root files, then Jinja."""
-    ps_index = os.path.join(_public_site, "index.html")
-    if os.path.isfile(ps_index):
-        return _no_cache(make_response(send_from_directory(_public_site, "index.html")))
-    root_index = os.path.join(_app_root, "index.html")
-    if os.path.isfile(root_index):
-        return _no_cache(make_response(send_from_directory(_app_root, "index.html")))
-    return _no_cache(make_response(render_template("index.html")))
+    return send_from_directory("public_site", "index.html")
 
 
 @app.get("/m/<path:rel>")
