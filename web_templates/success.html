@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Payment received | AutoYield Systems</title>
+    <meta name="robots" content="noindex" />
+    <link rel="stylesheet" href="{{ url_for('static', filename='landing.css') }}" />
+    <link rel="icon" href="{{ url_for('static', filename='favicon.svg') }}" type="image/svg+xml" />
+  </head>
+  <body>
+    <div class="bg-grid" aria-hidden="true"></div>
+    <div class="orb" aria-hidden="true"></div>
+    <header class="wrap site-header">
+      <a class="logo" href="/">AutoYield <span>Systems</span></a>
+      <nav class="nav">
+        <a class="btn btn-ghost" href="/">Home</a>
+      </nav>
+    </header>
+    <main class="wrap hero" style="padding-top: 2rem">
+      <p class="eyebrow">Checkout complete</p>
+      <h1>Thank you.</h1>
+      <p class="lead">
+        Your payment was processed. The Operations Team will align next steps with your account.
+      </p>
+      <p class="lead"><a class="btn" href="/">Return to AutoYield Systems</a></p>
+    </main>
+    <footer class="wrap site-footer">
+      <p>© <span id="y"></span> AutoYield Systems.</p>
+    </footer>
+    <script>
+      document.getElementById("y").textContent = new Date().getFullYear();
+    </script>
+  </body>
+</html>

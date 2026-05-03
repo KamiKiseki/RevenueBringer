@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Pricing & plans | AutoYield Systems</title>
+    <meta
+      name="description"
+      content="Performance-based lead generation for service businesses. Explore how AutoYield Systems structures trials and ongoing partnerships."
+    />
+    <link rel="stylesheet" href="{{ url_for('static', filename='landing.css') }}" />
+    <link rel="icon" href="{{ url_for('static', filename='favicon.svg') }}" type="image/svg+xml" />
+  </head>
+  <body>
+    <div class="bg-grid" aria-hidden="true"></div>
+    <div class="orb" aria-hidden="true"></div>
+    <header class="wrap site-header">
+      <a class="logo" href="/">AutoYield <span>Systems</span></a>
+      <nav class="nav">
+        <a href="/#how">How it works</a>
+        <a href="/#contact">Contact</a>
+      </nav>
+    </header>
+    <main>
+      <section class="wrap hero">
+        <p class="eyebrow">Transparent tiers</p>
+        <h1>Plans built around proof and performance.</h1>
+        <p class="lead">
+          Exact figures depend on your niche, territory, and trial structure. After signup, the
+          Operations Team confirms scope and billing cadence in writing.
+        </p>
+      </section>
+      <section class="wrap" id="model">
+        <div class="panel">
+          <h2>What you’re paying for</h2>
+          <ul>
+            <li>Structured outreach and follow-up workflow—not a one-time lead dump.</li>
+            <li>Reporting tied to pipeline stages you can audit.</li>
+            <li>Commercial terms introduced only after you’ve seen relevant proof.</li>
+          </ul>
+        </div>
+      </section>
+      <section class="wrap cta-band" id="contact">
+        <h2>Questions before you commit?</h2>
+        <p class="sub" style="margin: 0 auto 1.5rem">Reach the Operations Team directly.</p>
+        <a
+          class="btn"
+          href="mailto:hello@autoyieldsystems.com?subject=Pricing%20question%20-%20AutoYield"
+          >hello@autoyieldsystems.com</a
+        >
+      </section>
+    </main>
+    <footer class="wrap site-footer">
+      <div class="footer-row">
+        <p>© <span id="y"></span> AutoYield Systems.</p>
+        <div class="footer-links">
+          <a href="/">Home</a>
+          <a href="/health">API health</a>
+        </div>
+      </div>
+    </footer>
+    <script>
+      document.getElementById("y").textContent = new Date().getFullYear();
+    </script>
+  </body>
+</html>

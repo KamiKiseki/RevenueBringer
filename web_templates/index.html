@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>AutoYield Systems — Performance-Based Local Lead Generation</title>
+    <meta
+      name="description"
+      content="AutoYield Systems delivers qualified local leads for service businesses—proof before commitment, corporate Operations Team, full-stack automation."
+    />
+    <link rel="stylesheet" href="{{ url_for('static', filename='landing.css') }}" />
+    <link rel="icon" href="{{ url_for('static', filename='favicon.svg') }}" type="image/svg+xml" />
+    <link rel="shortcut icon" href="/favicon.ico" />
+  </head>
+  <body>
+    <div class="bg-grid" aria-hidden="true"></div>
+    <div class="orb" aria-hidden="true"></div>
+
+    <header class="wrap site-header">
+      <a class="logo" href="#">AutoYield <span>Systems</span></a>
+      <nav class="nav" aria-label="Primary">
+        <a href="#how">How it works</a>
+        <a href="#model">Offer</a>
+        <a href="#contact">Contact</a>
+        <a class="btn btn-ghost" href="/health" title="API heartbeat">Status</a>
+      </nav>
+    </header>
+
+    <main>
+      <section class="wrap hero">
+        <p class="eyebrow">Local authority · Proof-first · Hands-off operations</p>
+        <h1>Lead generation that earns trust before it asks for money.</h1>
+        <p class="lead">
+          We identify high-intent prospects in your niche and geography, deliver measurable proof,
+          and route interested owners through a professional, compliant funnel—so you scale without
+          becoming a call center.
+        </p>
+        <div class="hero-cta">
+          <a class="btn" href="#contact">Talk to Operations</a>
+          <a class="btn btn-ghost" href="#how">See the workflow</a>
+        </div>
+      </section>
+
+      <section class="wrap" id="pillars">
+        <div class="grid-3">
+          <article class="card">
+            <h3>Proof, not promises</h3>
+            <p>
+              Value is demonstrated with real outreach and localized context—not slides or vague
+              guarantees.
+            </p>
+          </article>
+          <article class="card">
+            <h3>Corporate Operations Team</h3>
+            <p>
+              Consistent, professional voice across email, voice, and agreements. Built for
+              owner-operators who expect clarity.
+            </p>
+          </article>
+          <article class="card">
+            <h3>Automation + audit trail</h3>
+            <p>
+              Orchestrated pipelines with logging, rate limits, and compliance-minded messaging—so
+              you know what ran and when.
+            </p>
+          </article>
+        </div>
+      </section>
+
+      <section class="wrap" id="how">
+        <h2>How it works</h2>
+        <p class="sub">
+          A closed loop from discovery to conversion—so campaigns compound instead of stalling
+          after the first blast.
+        </p>
+        <div class="steps">
+          <article class="card">
+            <div class="step-num">01</div>
+            <h3>Harvest</h3>
+            <p>Targeted discovery by niche and geography—structured for repeatability.</p>
+          </article>
+          <article class="card">
+            <div class="step-num">02</div>
+            <h3>Verify</h3>
+            <p>Clean business identities and location signals so outreach lands as relevant.</p>
+          </article>
+          <article class="card">
+            <div class="step-num">03</div>
+            <h3>Engage</h3>
+            <p>
+              Coordinated email and voice touchpoints from the Operations Team—not generic bulk
+              spam.
+            </p>
+          </article>
+          <article class="card">
+            <div class="step-num">04</div>
+            <h3>Convert</h3>
+            <p>
+              Agreements and billing flow when the prospect opts in—transparent pricing and clear
+              next steps.
+            </p>
+          </article>
+        </div>
+      </section>
+
+      <section class="wrap" id="model">
+        <div class="panel">
+          <h2>The performance model</h2>
+          <p class="sub" style="margin-bottom: 1.25rem">
+            Built around outcomes you can see: trials, trials-to-paid, and subscription continuity—
+            not vanity impressions.
+          </p>
+          <ul>
+            <li>Localized relevance (street- and market-aware messaging where applicable).</li>
+            <li>Clear opt-out and disclosure paths aligned with operational policy.</li>
+            <li>Instrumentation for outreach, responses, agreements, and payments.</li>
+          </ul>
+        </div>
+      </section>
+
+      <section class="wrap cta-band" id="contact">
+        <h2>Ready to route demand into your calendar?</h2>
+        <p class="sub" style="margin: 0 auto 1.5rem">
+          Tell us your niche and service area. We’ll respond with next steps from the Operations
+          Team.
+        </p>
+        <a class="btn" href="mailto:hello@autoyieldsystems.com?subject=AutoYield%20Systems%20—%20Inquiry"
+          >hello@autoyieldsystems.com</a
+        >
+      </section>
+    </main>
+
+    <footer class="wrap site-footer">
+      <div class="footer-row">
+        <p>© <span id="y"></span> AutoYield Systems. All rights reserved.</p>
+        <div class="footer-links">
+          <a href="/health">API health</a>
+          <a href="#pillars">Why us</a>
+        </div>
+      </div>
+    </footer>
+    <script>
+      document.getElementById("y").textContent = new Date().getFullYear();
+    </script>
+  </body>
+</html>
