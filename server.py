@@ -1088,8 +1088,20 @@ def sanitize_notes():
 
 @app.get("/")
 def public_landing():
-    """Public marketing site for autoyieldsystems.com."""
+    """Public marketing site — root index.html matches CDN/static deploy (same HTML as live domain)."""
+    root_index = os.path.join(_app_root, "index.html")
+    if os.path.isfile(root_index):
+        return send_from_directory(_app_root, "index.html")
     return render_template("index.html")
+
+
+@app.get("/style.css")
+def root_marketing_css():
+    """Stylesheet paired with root index.html (static landing bundle)."""
+    path = os.path.join(_app_root, "style.css")
+    if os.path.isfile(path):
+        return send_from_directory(_app_root, "style.css")
+    return ("Not Found", 404)
 
 
 @app.get("/success")
