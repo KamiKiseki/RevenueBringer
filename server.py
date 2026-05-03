@@ -6,7 +6,17 @@ from uuid import uuid4
 
 import requests
 import stripe
-from flask import Flask, jsonify, render_template, request, send_from_directory
+from flask import (
+    Flask,
+    abort,
+    jsonify,
+    make_response,
+    render_template,
+    request,
+    send_file,
+    send_from_directory,
+)
+from werkzeug.utils import safe_join
 from sqlalchemy.exc import OperationalError
 
 from sqlalchemy.orm import Session
@@ -45,6 +55,7 @@ from templates import (
 )
 
 _app_root = os.path.dirname(os.path.abspath(__file__))
+_public_site = os.path.join(_app_root, "public_site")
 app = Flask(
     __name__,
     template_folder=os.path.join(_app_root, "web_templates"),
@@ -1086,18 +1097,37 @@ def sanitize_notes():
     return jsonify({"ok": True, "cleaned_records": cleaned})
 
 
+def _no_cache(resp):
+    """Avoid stale HTML at CDN edge after deploy (Railway/Fastly)."""
+    resp.headers["Cache-Control"] = "no-store, no-cache, must-revalidate, max-age=0"
+    resp.headers["Pragma"] = "no-cache"
+    return resp
+
+
 @app.get("/")
 def public_landing():
-    """Public marketing site — root index.html matches CDN/static deploy (same HTML as live domain)."""
+    """Marketing homepage — prefer `public_site/` (current bundle), then legacy root files, then Jinja."""
+    ps_index = os.path.join(_public_site, "index.html")
+    if os.path.isfile(ps_index):
+        return _no_cache(make_response(send_from_directory(_public_site, "index.html")))
     root_index = os.path.join(_app_root, "index.html")
     if os.path.isfile(root_index):
-        return send_from_directory(_app_root, "index.html")
-    return render_template("index.html")
+        return _no_cache(make_response(send_from_directory(_app_root, "index.html")))
+    return _no_cache(make_response(render_template("index.html")))
+
+
+@app.get("/m/<path:rel>")
+def public_site_files(rel: str):
+    """Assets for `public_site/` (CSS/JS)."""
+    path = safe_join(_public_site, rel)
+    if path is None or not os.path.isfile(path):
+        abort(404)
+    return send_file(path, conditional=True)
 
 
 @app.get("/style.css")
 def root_marketing_css():
-    """Stylesheet paired with root index.html (static landing bundle)."""
+    """Legacy stylesheet at site root (old static bundle)."""
     path = os.path.join(_app_root, "style.css")
     if os.path.isfile(path):
         return send_from_directory(_app_root, "style.css")
@@ -1134,7 +1164,13 @@ def robots_txt():
 
 @app.get("/health")
 def health():
-    return jsonify({"ok": True})
+    return jsonify(
+        {
+            "ok": True,
+            "service": "autoyieldsystems",
+            "public_site": os.path.isfile(os.path.join(_public_site, "index.html")),
+        }
+    )
 
 
 if __name__ == "__main__":

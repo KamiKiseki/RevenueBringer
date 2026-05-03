@@ -1,0 +1,3 @@
+# Ensures the Flask app runs (serves public_site + APIs), not a static-only bundle.
+[deploy]
+startCommand = "python server.py"
