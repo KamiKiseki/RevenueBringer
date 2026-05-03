@@ -3,21 +3,43 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>AutoYield Systems — Performance-Based Local Lead Generation</title>
+    <meta name="application-name" content="autoyieldsystems" />
+    <meta name="theme-color" content="#050510" />
+    <title>autoyieldsystems — Futuristic customer acquisition for modern businesses</title>
     <meta
       name="description"
-      content="AutoYield Systems delivers qualified local leads for service businesses—proof before commitment, corporate Operations Team, full-stack automation."
+      content="autoyieldsystems.com — Futuristic customer acquisition for modern businesses. Proof-first local lead generation, Operations Team, full-stack automation."
+    />
+    <link rel="canonical" href="https://autoyieldsystems.com/" />
+    <meta property="og:site_name" content="autoyieldsystems" />
+    <meta property="og:url" content="https://autoyieldsystems.com/" />
+    <meta property="og:title" content="autoyieldsystems — Futuristic customer acquisition" />
+    <meta property="og:type" content="website" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="apple-mobile-web-app-title" content="autoyieldsystems" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,600;0,9..40,700&family=JetBrains+Mono:wght@500;700&family=Syne:wght@600;700;800&display=swap"
+      rel="stylesheet"
     />
     <link rel="stylesheet" href="{{ url_for('static', filename='landing.css') }}" />
     <link rel="icon" href="{{ url_for('static', filename='favicon.svg') }}" type="image/svg+xml" />
     <link rel="shortcut icon" href="/favicon.ico" />
   </head>
   <body>
+    <div class="domain-ribbon" role="banner">
+      <span class="domain-ribbon__dot" aria-hidden="true"></span>
+      <strong>autoyieldsystems.com</strong>
+      <span class="domain-ribbon__sub">Official public site</span>
+    </div>
+
     <div class="bg-grid" aria-hidden="true"></div>
     <div class="orb" aria-hidden="true"></div>
+    <div class="orb-secondary" aria-hidden="true"></div>
 
     <header class="wrap site-header">
-      <a class="logo" href="#">AutoYield <span>Systems</span></a>
+      <a class="logo logo-domain" href="https://autoyieldsystems.com/">autoyieldsystems</a>
       <nav class="nav" aria-label="Primary">
         <a href="#how">How it works</a>
         <a href="#model">Offer</a>
@@ -28,16 +50,38 @@
 
     <main>
       <section class="wrap hero">
-        <p class="eyebrow">Local authority · Proof-first · Hands-off operations</p>
-        <h1>Lead generation that earns trust before it asks for money.</h1>
-        <p class="lead">
-          We identify high-intent prospects in your niche and geography, deliver measurable proof,
-          and route interested owners through a professional, compliant funnel—so you scale without
-          becoming a call center.
-        </p>
-        <div class="hero-cta">
-          <a class="btn" href="#contact">Talk to Operations</a>
-          <a class="btn btn-ghost" href="#how">See the workflow</a>
+        <div class="hero-split">
+          <div class="hero-split__copy">
+            <h1 class="hero-title">
+              <span class="logo-domain hero-brand">autoyieldsystems</span>
+              <span class="hero-tagline"
+                >Futuristic customer acquisition for modern businesses.</span
+              >
+            </h1>
+            <p class="lead">
+              We identify high-intent prospects in your niche and geography, deliver measurable
+              proof, and route interested owners through a professional, compliant funnel—so you
+              scale without becoming a call center.
+            </p>
+            <div class="hero-cta">
+              <a class="btn" href="#contact">Talk to Operations</a>
+              <a class="btn btn-ghost" href="#how">See the workflow</a>
+            </div>
+          </div>
+          <aside class="hero-terminal" aria-hidden="true">
+            <div class="hero-terminal__chrome">
+              <span></span><span></span><span></span>
+              <span class="hero-terminal__title">origin · autoyieldsystems.com</span>
+            </div>
+            <pre class="hero-terminal__body"><span class="t-m">$</span> <span class="t-k">curl</span> -s https://autoyieldsystems.com/<span class="t-k">health</span>
+
+<span class="t-k">{</span>
+  <span class="t-k">"service"</span>: <span class="t-v">"autoyieldsystems"</span>,
+  <span class="t-k">"status"</span>: <span class="t-v">"ok"</span>
+<span class="t-k">}</span>
+
+<span class="t-m"># Live ops pipeline · proof-first outreach</span></pre>
+          </aside>
         </div>
       </section>
 
@@ -70,8 +114,8 @@
       <section class="wrap" id="how">
         <h2>How it works</h2>
         <p class="sub">
-          A closed loop from discovery to conversion—so campaigns compound instead of stalling
-          after the first blast.
+          A closed loop from discovery to conversion—so campaigns compound instead of stalling after
+          the first blast.
         </p>
         <div class="steps">
           <article class="card">
@@ -124,7 +168,7 @@
           Tell us your niche and service area. We’ll respond with next steps from the Operations
           Team.
         </p>
-        <a class="btn" href="mailto:hello@autoyieldsystems.com?subject=AutoYield%20Systems%20—%20Inquiry"
+        <a class="btn" href="mailto:hello@autoyieldsystems.com?subject=autoyieldsystems%20inquiry"
           >hello@autoyieldsystems.com</a
         >
       </section>
@@ -132,7 +176,7 @@
 
     <footer class="wrap site-footer">
       <div class="footer-row">
-        <p>© <span id="y"></span> AutoYield Systems. All rights reserved.</p>
+        <p>© <span id="y"></span> autoyieldsystems.com · All rights reserved.</p>
         <div class="footer-links">
           <a href="/health">API health</a>
           <a href="#pillars">Why us</a>

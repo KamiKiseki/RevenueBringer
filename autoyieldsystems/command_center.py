@@ -51,7 +51,7 @@ def command_center_page() -> rx.Component:
                 rx.text(State.conversion_rate_text, size="7", color="#d8b4fe", weight="bold"),
             ),
             neo_stat_tile(
-                "Capture · Revenue",
+                "Capture · Yield",
                 rx.hstack(
                     rx.text("$", size="7", color="#67e8f9", weight="bold"),
                     rx.text(State.revenue_total, size="7", color="#67e8f9", weight="bold"),
@@ -74,7 +74,7 @@ def command_center_page() -> rx.Component:
                 rx.text(State.backend_conversions, size="6", color="#c4b5fd", weight="bold"),
             ),
             neo_stat_tile(
-                "Backend · Revenue",
+                "Backend · Yield",
                 rx.hstack(
                     rx.text("$", size="6", color="#67e8f9", weight="bold"),
                     rx.text(State.backend_revenue_dollars, size="6", color="#67e8f9", weight="bold"),
@@ -563,7 +563,7 @@ def command_center_page() -> rx.Component:
                 rx.text(State.queued_leads_count, size="6", color="#fde68a", weight="bold"),
             ),
             neo_stat_tile(
-                "Revenue",
+                "Yield",
                 rx.hstack(
                     rx.text("$", size="6", color="#67e8f9", weight="bold"),
                     rx.text(State.revenue_total, size="6", color="#67e8f9", weight="bold"),
@@ -735,7 +735,7 @@ def command_center_page() -> rx.Component:
             rx.hstack(
                 rx.vstack(
                     rx.text(
-                        "AUTOYIELD SYSTEMS · COMMAND CENTER",
+                        "AUTOYIELDSYSTEMS.COM · COMMAND CENTER",
                         color="#64748b",
                         size="1",
                         weight="bold",
@@ -837,7 +837,7 @@ def landing_redirect() -> rx.Component:
                     style={"letter_spacing": "0.12em"},
                 ),
                 rx.text(
-                    "AutoYield Systems",
+                    "autoyieldsystems.com",
                     color="#64748b",
                     size="2",
                     style={"letter_spacing": "0.22em", "text_transform": "uppercase"},

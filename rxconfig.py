@@ -1,4 +1,4 @@
-"""Reflex config — AutoYield Systems dashboard (`customerbringer/`). DATABASE_URL via .env."""
+"""Reflex config — autoyieldsystems dashboard (`autoyieldsystems/`). DATABASE_URL via .env."""
 
 import os
 from dotenv import load_dotenv
@@ -11,7 +11,7 @@ load_dotenv()
 from models import DATABASE_URL as _db_url
 
 config = rx.Config(
-    app_name="customerbringer",
+    app_name="autoyieldsystems",
     db_url=_db_url,
     # Critical: Reflex UI events (button/tab clicks) must go to Reflex backend, not Flask.
     api_url=os.getenv("REFLEX_API_URL", "http://127.0.0.1:3000"),

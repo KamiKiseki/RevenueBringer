@@ -3,16 +3,34 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Payment received | AutoYield Systems</title>
+    <meta name="application-name" content="autoyieldsystems" />
+    <meta name="theme-color" content="#050510" />
+    <title>Payment received | autoyieldsystems.com</title>
     <meta name="robots" content="noindex" />
+    <link rel="canonical" href="https://autoyieldsystems.com/success" />
+    <meta property="og:site_name" content="autoyieldsystems" />
+    <meta property="og:url" content="https://autoyieldsystems.com/success" />
+    <meta name="apple-mobile-web-app-title" content="autoyieldsystems" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,600;0,9..40,700&family=JetBrains+Mono:wght@500;700&family=Syne:wght@600;700;800&display=swap"
+      rel="stylesheet"
+    />
     <link rel="stylesheet" href="{{ url_for('static', filename='landing.css') }}" />
     <link rel="icon" href="{{ url_for('static', filename='favicon.svg') }}" type="image/svg+xml" />
   </head>
   <body>
+    <div class="domain-ribbon" role="banner">
+      <span class="domain-ribbon__dot" aria-hidden="true"></span>
+      <strong>autoyieldsystems.com</strong>
+      <span class="domain-ribbon__sub">Official public site</span>
+    </div>
     <div class="bg-grid" aria-hidden="true"></div>
     <div class="orb" aria-hidden="true"></div>
+    <div class="orb-secondary" aria-hidden="true"></div>
     <header class="wrap site-header">
-      <a class="logo" href="/">AutoYield <span>Systems</span></a>
+      <a class="logo logo-domain" href="https://autoyieldsystems.com/">autoyieldsystems</a>
       <nav class="nav">
         <a class="btn btn-ghost" href="/">Home</a>
       </nav>
@@ -23,10 +41,10 @@
       <p class="lead">
         Your payment was processed. The Operations Team will align next steps with your account.
       </p>
-      <p class="lead"><a class="btn" href="/">Return to AutoYield Systems</a></p>
+      <p class="lead"><a class="btn" href="https://autoyieldsystems.com/">Return to autoyieldsystems.com</a></p>
     </main>
     <footer class="wrap site-footer">
-      <p>© <span id="y"></span> AutoYield Systems.</p>
+      <p>© <span id="y"></span> autoyieldsystems.com</p>
     </footer>
     <script>
       document.getElementById("y").textContent = new Date().getFullYear();
