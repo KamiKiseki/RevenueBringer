@@ -7,6 +7,43 @@ import reflex as rx
 from .state import State
 
 
+def site_inquiry_rows() -> rx.Component:
+    return rx.table.root(
+        rx.table.header(
+            rx.table.row(
+                rx.table.column_header_cell("ID"),
+                rx.table.column_header_cell("Contact"),
+                rx.table.column_header_cell("Business"),
+                rx.table.column_header_cell("Email"),
+                rx.table.column_header_cell("Phone"),
+                rx.table.column_header_cell("Website"),
+                rx.table.column_header_cell("Industry"),
+                rx.table.column_header_cell("Message"),
+                rx.table.column_header_cell("Submitted"),
+            ),
+        ),
+        rx.table.body(
+            rx.foreach(
+                State.site_inquiry_rows,
+                lambda row: rx.table.row(
+                    rx.table.cell(row["id"]),
+                    rx.table.cell(row["contact_name"]),
+                    rx.table.cell(row["business"]),
+                    rx.table.cell(row["email"]),
+                    rx.table.cell(row["phone"]),
+                    rx.table.cell(row["website"]),
+                    rx.table.cell(row["industry"]),
+                    rx.table.cell(row["message"]),
+                    rx.table.cell(row["created"]),
+                ),
+            ),
+        ),
+        variant="surface",
+        size="2",
+        width="100%",
+    )
+
+
 def lead_rows() -> rx.Component:
     return rx.table.root(
         rx.table.header(

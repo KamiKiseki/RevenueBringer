@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import os
 from datetime import datetime, timezone
+from io import BytesIO
 from uuid import uuid4
 
 import requests
@@ -10,7 +11,7 @@ from flask import (
     Flask,
     abort,
     jsonify,
-    render_template,
+    redirect,
     request,
     send_file,
     send_from_directory,
@@ -29,6 +30,7 @@ from models import (
     LeadStatus,
     MessageEvent,
     MessageStatus,
+    SiteInquiry,
     SuppressionEntry,
     SystemLog,
     get_session,
@@ -1101,6 +1103,62 @@ def public_landing():
     return send_from_directory("public_site", "index.html")
 
 
+@app.post("/api/site-inquiry")
+def api_site_inquiry():
+    """Persist marketing-site form submissions for Command Center (Contact Submissions tab)."""
+    data = request.get_json(silent=True) or {}
+    contact_name = (data.get("contact_name") or "").strip()
+    email = (data.get("email") or "").strip()
+    business_name = (data.get("business_name") or "").strip()
+    phone = (data.get("phone") or "").strip() or None
+    website = (data.get("website") or "").strip() or None
+    industry = (data.get("industry") or "").strip() or None
+    message = (data.get("message") or "").strip() or None
+    if not contact_name or not email or not business_name:
+        return (
+            jsonify(
+                {
+                    "ok": False,
+                    "error": "contact_name, email, and business_name are required",
+                }
+            ),
+            400,
+        )
+    if "@" not in email or "." not in email.split("@")[-1]:
+        return jsonify({"ok": False, "error": "valid email is required"}), 400
+    try:
+        inq = SiteInquiry(
+            contact_name=contact_name[:255],
+            email=email[:255],
+            business_name=business_name[:255],
+            phone=phone[:64] if phone else None,
+            website=website[:500] if website else None,
+            industry=industry[:120] if industry else None,
+            message=message[:4000] if message else None,
+        )
+        with get_session() as session:
+            session.add(inq)
+            session.commit()
+            cid = str(inq.correlation_id)
+            iid = int(inq.id)
+        log_system_event(
+            source="public_site",
+            action="site_inquiry",
+            detail=f"id={iid} business={business_name[:80]!r} email={email[:80]!r}",
+            level="info",
+            correlation_id=cid,
+        )
+        return jsonify({"ok": True, "id": iid, "correlation_id": cid})
+    except Exception as exc:
+        log_system_event(
+            source="public_site",
+            action="site_inquiry_failed",
+            detail=str(exc)[:1800],
+            level="error",
+        )
+        return jsonify({"ok": False, "error": "Could not save submission"}), 500
+
+
 @app.get("/m/<path:rel>")
 def public_site_files(rel: str):
     """Assets for `public_site/` (CSS/JS)."""
@@ -1121,23 +1179,26 @@ def root_marketing_css():
 
 @app.get("/success")
 def public_checkout_success():
-    """Post-Stripe thank-you (STRIPE_SUCCESS_URL)."""
-    return render_template("success.html")
+    """Post-Stripe thank-you (STRIPE_SUCCESS_URL); templates removed — land on home."""
+    return redirect("/", 302)
 
 
 @app.get("/pricing")
 def public_pricing():
-    """Plan context + contact (STRIPE_CANCEL_URL default)."""
-    return render_template("pricing.html")
+    """Plan context (STRIPE_CANCEL_URL default); templates removed — land on home."""
+    return redirect("/", 302)
 
 
 @app.get("/favicon.ico")
 def favicon():
-    return send_from_directory(
-        os.path.join(_app_root, "web_static"),
-        "favicon.svg",
-        mimetype="image/svg+xml",
+    svg = (
+        b'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32">'
+        b'<rect width="32" height="32" rx="8" fill="#06040f"/>'
+        b'<path d="M8 16 L14 22 L24 10" stroke="#5eead4" stroke-width="2.5" '
+        b'stroke-linecap="round" stroke-linejoin="round"/>'
+        b"</svg>"
     )
+    return send_file(BytesIO(svg), mimetype="image/svg+xml")
 
 
 @app.get("/robots.txt")

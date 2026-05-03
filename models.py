@@ -250,6 +250,30 @@ class SystemLog(Base):
     )
 
 
+class SiteInquiry(Base):
+    """Inbound captures from the public marketing site (Command Center → Contact Submissions)."""
+
+    __tablename__ = "site_inquiries"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    contact_name: Mapped[str] = mapped_column(String(255), nullable=False)
+    phone: Mapped[str | None] = mapped_column(String(64), nullable=True, index=True)
+    email: Mapped[str] = mapped_column(String(255), nullable=False, index=True)
+    business_name: Mapped[str] = mapped_column(String(255), nullable=False, index=True)
+    website: Mapped[str | None] = mapped_column(String(500), nullable=True)
+    industry: Mapped[str | None] = mapped_column(String(120), nullable=True)
+    message: Mapped[str | None] = mapped_column(Text, nullable=True)
+    correlation_id: Mapped[str] = mapped_column(
+        String(64), nullable=False, default=lambda: uuid4().hex, unique=True, index=True
+    )
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        nullable=False,
+        default=lambda: datetime.now(timezone.utc),
+        index=True,
+    )
+
+
 DATABASE_URL = _normalize_database_url(os.getenv("DATABASE_URL"))
 
 engine_kwargs = {"echo": False, "future": True}
