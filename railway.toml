@@ -1,5 +1,8 @@
 # Flask API + automation backend (python server.py).
 # Healthcheck: deploy only goes live when THIS process answers (not a stale static layer).
+[build.variables]
+RAILPACK_BUILD_APT_PACKAGES = "portaudio19-dev"
+
 [deploy]
 startCommand = "python server.py"
 healthcheckPath = "/health"
