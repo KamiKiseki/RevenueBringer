@@ -7,16 +7,7 @@ from uuid import uuid4
 
 import requests
 import stripe
-from flask import (
-    Flask,
-    abort,
-    jsonify,
-    redirect,
-    request,
-    send_file,
-    send_from_directory,
-)
-from werkzeug.utils import safe_join
+from flask import Flask, jsonify, redirect, request, send_file
 from sqlalchemy.exc import OperationalError
 
 from sqlalchemy.orm import Session
@@ -30,7 +21,6 @@ from models import (
     LeadStatus,
     MessageEvent,
     MessageStatus,
-    SiteInquiry,
     SuppressionEntry,
     SystemLog,
     get_session,
@@ -56,11 +46,11 @@ from templates import (
 )
 
 _app_root = os.path.dirname(os.path.abspath(__file__))
-_public_site = os.path.join(_app_root, "public_site")
+_flask_stub = os.path.join(_app_root, "_flask_stub")
 app = Flask(
     __name__,
-    template_folder=os.path.join(_app_root, "web_templates"),
-    static_folder=os.path.join(_app_root, "web_static"),
+    template_folder=os.path.join(_flask_stub, "templates"),
+    static_folder=os.path.join(_flask_stub, "static"),
     static_url_path="/assets",
 )
 
@@ -1100,81 +1090,13 @@ def sanitize_notes():
 
 @app.get("/")
 def public_landing():
-    return send_from_directory("public_site", "index.html")
-
-
-@app.post("/api/site-inquiry")
-def api_site_inquiry():
-    """Persist marketing-site form submissions for Command Center (Contact Submissions tab)."""
-    data = request.get_json(silent=True) or {}
-    contact_name = (data.get("contact_name") or "").strip()
-    email = (data.get("email") or "").strip()
-    business_name = (data.get("business_name") or "").strip()
-    phone = (data.get("phone") or "").strip() or None
-    website = (data.get("website") or "").strip() or None
-    industry = (data.get("industry") or "").strip() or None
-    message = (data.get("message") or "").strip() or None
-    if not contact_name or not email or not business_name:
-        return (
-            jsonify(
-                {
-                    "ok": False,
-                    "error": "contact_name, email, and business_name are required",
-                }
-            ),
-            400,
-        )
-    if "@" not in email or "." not in email.split("@")[-1]:
-        return jsonify({"ok": False, "error": "valid email is required"}), 400
-    try:
-        inq = SiteInquiry(
-            contact_name=contact_name[:255],
-            email=email[:255],
-            business_name=business_name[:255],
-            phone=phone[:64] if phone else None,
-            website=website[:500] if website else None,
-            industry=industry[:120] if industry else None,
-            message=message[:4000] if message else None,
-        )
-        with get_session() as session:
-            session.add(inq)
-            session.commit()
-            cid = str(inq.correlation_id)
-            iid = int(inq.id)
-        log_system_event(
-            source="public_site",
-            action="site_inquiry",
-            detail=f"id={iid} business={business_name[:80]!r} email={email[:80]!r}",
-            level="info",
-            correlation_id=cid,
-        )
-        return jsonify({"ok": True, "id": iid, "correlation_id": cid})
-    except Exception as exc:
-        log_system_event(
-            source="public_site",
-            action="site_inquiry_failed",
-            detail=str(exc)[:1800],
-            level="error",
-        )
-        return jsonify({"ok": False, "error": "Could not save submission"}), 500
-
-
-@app.get("/m/<path:rel>")
-def public_site_files(rel: str):
-    """Assets for `public_site/` (CSS/JS)."""
-    path = safe_join(_public_site, rel)
-    if path is None or not os.path.isfile(path):
-        abort(404)
-    return send_file(path, conditional=True)
-
-
-@app.get("/style.css")
-def root_marketing_css():
-    """Legacy stylesheet at site root (old static bundle)."""
-    path = os.path.join(_app_root, "style.css")
-    if os.path.isfile(path):
-        return send_from_directory(_app_root, "style.css")
-    return ("Not Found", 404)
+    """Marketing site removed — domain still used for Stripe URLs in env / server defaults."""
+    body = (
+        "autoyieldsystems.com — API backend online.\n"
+        "Public marketing pages have been removed from this repository.\n"
+        "Use your DNS / hosting provider to point the domain at a separate site if needed.\n"
+    )
+    return body, 200, {"Content-Type": "text/plain; charset=utf-8"}
 
 
 @app.get("/success")
@@ -1210,13 +1132,7 @@ def robots_txt():
 
 @app.get("/health")
 def health():
-    return jsonify(
-        {
-            "ok": True,
-            "service": "autoyieldsystems",
-            "public_site": os.path.isfile(os.path.join(_public_site, "index.html")),
-        }
-    )
+    return jsonify({"ok": True, "service": "autoyieldsystems", "marketing_site": False})
 
 
 if __name__ == "__main__":

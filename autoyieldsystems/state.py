@@ -16,7 +16,6 @@ from models import (
     LeadStatus,
     MessageEvent,
     MessageStatus,
-    SiteInquiry,
     get_session,
     get_setting,
     init_db,
@@ -482,36 +481,6 @@ class State(rx.State):
                 self.system_logs_rows = rows
         except Exception:
             self.system_logs_rows = []
-
-    @rx.var
-    def site_inquiry_rows(self) -> list[dict[str, str | int]]:
-        """Public-site form submissions (see `SiteInquiry` in models)."""
-        _ = self.db_sync_tick
-        try:
-            with get_session() as session:
-                rows = session.query(SiteInquiry).order_by(SiteInquiry.id.desc()).limit(200).all()
-                out: list[dict[str, str | int]] = []
-                for r in rows:
-                    raw_msg = (r.message or "").strip()
-                    msg_preview = (raw_msg[:120] + "…") if len(raw_msg) > 120 else (raw_msg or "—")
-                    out.append(
-                        {
-                            "id": int(r.id),
-                            "contact_name": str(r.contact_name),
-                            "email": str(r.email),
-                            "phone": str(r.phone or "—"),
-                            "business": str(r.business_name),
-                            "website": str(r.website or "—"),
-                            "industry": str(r.industry or "—"),
-                            "message": msg_preview,
-                            "created": r.created_at.strftime("%Y-%m-%d %H:%M UTC")
-                            if r.created_at
-                            else "—",
-                        }
-                    )
-                return out
-        except OperationalError:
-            return []
 
     @rx.var
     def filtered_leads(self) -> list[dict[str, str | int]]:

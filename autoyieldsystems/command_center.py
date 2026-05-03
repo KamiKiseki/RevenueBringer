@@ -13,7 +13,7 @@ from .layout import (
     placeholder_module,
 )
 from .state import State
-from .tables import agreement_table, lead_rows, raw_db_table, site_inquiry_rows
+from .tables import agreement_table, lead_rows, raw_db_table
 
 
 def command_center_page() -> rx.Component:
@@ -312,12 +312,11 @@ def command_center_page() -> rx.Component:
     contact_submissions_panel = glass_card(
         rx.text("Contact Submissions", weight="bold", color="white", size="4"),
         rx.text(
-            "Inbound from autoyieldsystems.com — name, phone, email, business, website, industry, notes. "
-            "Stored in site_inquiries; refresh signals after new submissions.",
+            "Public web intake has been removed from the deployment. Pipeline leads remain in Lead Engine below.",
             color="#94a3b8",
             size="2",
         ),
-        neo_table_shell(site_inquiry_rows()),
+        neo_table_shell(lead_rows()),
         width="100%",
     )
 
