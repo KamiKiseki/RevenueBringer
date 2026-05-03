@@ -1099,8 +1099,9 @@ def sanitize_notes():
 
 def _no_cache(resp):
     """Avoid stale HTML at CDN edge after deploy (Railway/Fastly)."""
-    resp.headers["Cache-Control"] = "no-store, no-cache, must-revalidate, max-age=0"
+    resp.headers["Cache-Control"] = "no-store, no-cache, must-revalidate"
     resp.headers["Pragma"] = "no-cache"
+    resp.headers["Expires"] = "0"
     return resp
 
 
