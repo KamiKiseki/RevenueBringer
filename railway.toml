@@ -1,3 +1,6 @@
 # Flask API + automation backend (python server.py).
+# Healthcheck: deploy only goes live when THIS process answers (not a stale static layer).
 [deploy]
 startCommand = "python server.py"
+healthcheckPath = "/health"
+healthcheckTimeout = 120

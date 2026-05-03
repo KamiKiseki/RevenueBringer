@@ -1088,15 +1088,31 @@ def sanitize_notes():
     return jsonify({"ok": True, "cleaned_records": cleaned})
 
 
+def _railway_fingerprint() -> dict[str, str]:
+    """Proves requests hit THIS Flask deploy (hvac-engine). If you see RevenueBringer HTML instead, DNS/custom domain is on the wrong target."""
+    return {
+        "app": "server.py Flask (autoyieldsystems backend)",
+        "railway_git_sha": (os.getenv("RAILWAY_GIT_COMMIT_SHA") or "unknown")[:12],
+        "railway_service": os.getenv("RAILWAY_SERVICE_NAME") or "unknown",
+        "railway_environment": os.getenv("RAILWAY_ENVIRONMENT_NAME") or "unknown",
+    }
+
+
 @app.get("/")
 def public_landing():
-    """Marketing site removed — domain still used for Stripe URLs in env / server defaults."""
-    body = (
-        "autoyieldsystems.com — API backend online.\n"
-        "Public marketing pages have been removed from this repository.\n"
-        "Use your DNS / hosting provider to point the domain at a separate site if needed.\n"
-    )
-    return body, 200, {"Content-Type": "text/plain; charset=utf-8"}
+    """Marketing site removed. Plain text + deploy fingerprint so you can verify routing."""
+    fp = _railway_fingerprint()
+    lines = [
+        "autoyieldsystems.com — THIS IS THE FLASK API (hvac-engine).",
+        "If you still see RevenueBringer HTML in a browser, that traffic is NOT reaching this process.",
+        "Fix: Railway → only this service → attach custom domain. Remove domain from any other Railway service.",
+        "",
+        "Deploy fingerprint:",
+        f"  railway_service={fp['railway_service']}",
+        f"  railway_git_sha={fp['railway_git_sha']}",
+        f"  railway_environment={fp['railway_environment']}",
+    ]
+    return "\n".join(lines), 200, {"Content-Type": "text/plain; charset=utf-8"}
 
 
 @app.get("/success")
@@ -1132,7 +1148,9 @@ def robots_txt():
 
 @app.get("/health")
 def health():
-    return jsonify({"ok": True, "service": "autoyieldsystems", "marketing_site": False})
+    out = {"ok": True, "service": "autoyieldsystems", "marketing_site": False}
+    out.update(_railway_fingerprint())
+    return jsonify(out)
 
 
 if __name__ == "__main__":
