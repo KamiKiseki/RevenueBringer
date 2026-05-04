@@ -1,9 +1,10 @@
 Railway — Root Directory
 
-MAIN API SERVICE (hvac-engine / server.py):
+MAIN API SERVICE (Flask / server.py; Railway service name may be e.g. RevenueBringer):
   In Railway → that service → Settings → Source (or Build):
   Clear "Root Directory" completely (leave empty). The repo root must be used
   so Railpack finds server.py, requirements.txt, railway.toml, railpack.json.
+  Start command (railway.toml): gunicorn serves Flask in production; local dev: python server.py (optional FLASK_DEBUG=1).
 
 OPTIONAL SECOND SERVICE (public marketing only):
   Only if you created a separate service for the small Flask app in services/marketing:

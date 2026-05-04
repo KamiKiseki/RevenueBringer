@@ -13,7 +13,7 @@ from .layout import (
     placeholder_module,
 )
 from .state import State
-from .tables import agreement_table, lead_rows, raw_db_table
+from .tables import agreement_table, contact_submission_table, lead_rows, raw_db_table
 
 
 def command_center_page() -> rx.Component:
@@ -312,11 +312,18 @@ def command_center_page() -> rx.Component:
     contact_submissions_panel = glass_card(
         rx.text("Contact Submissions", weight="bold", color="white", size="4"),
         rx.text(
-            "Public web intake has been removed from the deployment. Pipeline leads remain in Lead Engine below.",
+            "Rows from POST /contact on the Flask site (autoyieldsystems.com). Same DATABASE_URL as this Command Center — refresh tab or click Refresh after new submissions.",
             color="#94a3b8",
             size="2",
         ),
-        neo_table_shell(lead_rows()),
+        rx.button(
+            "Refresh list",
+            on_click=State.sync_db_views,
+            variant="outline",
+            color_scheme="cyan",
+            style={"letter_spacing": "0.06em", "margin_bottom": "12px"},
+        ),
+        neo_table_shell(contact_submission_table()),
         width="100%",
     )
 

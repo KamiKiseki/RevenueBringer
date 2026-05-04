@@ -1,0 +1,54 @@
+{% extends "base.html" %}
+{% block title %}AutoYield Systems — Yield automation for growth teams{% endblock %}
+{% block body %}
+<section class="hero">
+  <span class="tag">HVAC · Home services · B2B yield</span>
+  <h1>Automate proof. Close with confidence.</h1>
+  <p class="lead">
+    AutoYield Systems runs your value-first funnel: curated leads, Instantly-backed outreach,
+    Vapi voice touchpoints, PandaDoc agreements, and Stripe — with a private Command Center so you
+    own every correlation ID from first ping to paid.
+  </p>
+  <p>
+    <a class="btn" href="{{ url_for('public_contact') }}">Start a conversation</a>
+    <a class="btn btn-ghost" href="#mission">Learn more</a>
+  </p>
+</section>
+
+<section class="panel" id="mission">
+  <h2>Mission</h2>
+  <p>
+    We built AutoYield for operators who refuse black-box SaaS. Your pipeline is orchestrated in the open:
+    scout targets, queue proof deliveries, trigger tier offers, and watch agreements and webhooks land in
+    one database your team can audit — not scattered spreadsheets.
+  </p>
+  <p>
+    Whether you run HVAC routes or white-label the engine for another vertical, the same spine applies:
+    <strong style="color: var(--cyan);">respect the inbox</strong>,
+    <strong style="color: var(--violet);">prove value before the ask</strong>,
+    and keep revenue events tied to real identities.
+  </p>
+</section>
+
+<section class="panel" id="stack">
+  <h2>What runs under the hood</h2>
+  <div class="grid-3">
+    <div class="stat">
+      <strong>∞</strong>
+      <span>Lead engine &amp; dedupe</span>
+    </div>
+    <div class="stat">
+      <strong>⚡</strong>
+      <span>Instantly campaigns + SMTP paths</span>
+    </div>
+    <div class="stat">
+      <strong>◇</strong>
+      <span>Vapi · PandaDoc · Stripe webhooks</span>
+    </div>
+  </div>
+  <p style="margin-top: 1.5rem; color: var(--muted);">
+    Public pages you are reading now share the same data plane as your Command Center: one
+    <code style="color: var(--cyan);">DATABASE_URL</code>, one source of truth for submissions and deals.
+  </p>
+</section>
+{% endblock %}

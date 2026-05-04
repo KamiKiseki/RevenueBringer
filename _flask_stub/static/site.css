@@ -1,0 +1,275 @@
+:root {
+  --bg0: #030712;
+  --bg1: #0a1628;
+  --cyan: #22d3ee;
+  --violet: #a78bfa;
+  --text: #e2e8f0;
+  --muted: #94a3b8;
+  --glass: rgba(15, 23, 42, 0.55);
+  --border: rgba(34, 211, 238, 0.25);
+  --glow: 0 0 42px rgba(34, 211, 238, 0.15);
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  font-family: "Rajdhani", system-ui, sans-serif;
+  font-size: 1.125rem;
+  color: var(--text);
+  background: var(--bg0);
+  line-height: 1.55;
+}
+
+.bg-grid {
+  position: fixed;
+  inset: 0;
+  z-index: -2;
+  background-image:
+    linear-gradient(rgba(34, 211, 238, 0.04) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(34, 211, 238, 0.04) 1px, transparent 1px);
+  background-size: 48px 48px;
+  mask-image: radial-gradient(ellipse 80% 60% at 50% 20%, black 20%, transparent 70%);
+}
+
+.bg-orb {
+  position: fixed;
+  width: 60vmax;
+  height: 60vmax;
+  border-radius: 50%;
+  filter: blur(80px);
+  opacity: 0.35;
+  z-index: -1;
+  pointer-events: none;
+}
+
+.bg-orb.cyan {
+  top: -20%;
+  right: -10%;
+  background: radial-gradient(circle, var(--cyan), transparent 70%);
+}
+
+.bg-orb.violet {
+  bottom: -25%;
+  left: -15%;
+  background: radial-gradient(circle, var(--violet), transparent 70%);
+}
+
+.wrap {
+  max-width: 1120px;
+  margin: 0 auto;
+  padding: 0 1.5rem 4rem;
+}
+
+header.site-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 1.25rem 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.logo {
+  font-family: "Orbitron", sans-serif;
+  font-weight: 700;
+  font-size: 1rem;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--cyan);
+  text-shadow: var(--glow);
+}
+
+nav a {
+  color: var(--muted);
+  text-decoration: none;
+  margin-left: 1.75rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  transition: color 0.2s;
+}
+
+nav a:hover {
+  color: var(--cyan);
+}
+
+.hero {
+  padding: 4rem 0 3rem;
+  text-align: center;
+}
+
+.hero h1 {
+  font-family: "Orbitron", sans-serif;
+  font-weight: 700;
+  font-size: clamp(2rem, 5vw, 3.25rem);
+  line-height: 1.15;
+  margin: 0 0 1rem;
+  background: linear-gradient(120deg, var(--cyan), #fff, var(--violet));
+  background-clip: text;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.hero .tag {
+  display: inline-block;
+  padding: 0.35rem 1rem;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  font-size: 0.85rem;
+  color: var(--cyan);
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  margin-bottom: 1.5rem;
+}
+
+.hero p.lead {
+  max-width: 38rem;
+  margin: 0 auto 2rem;
+  color: var(--muted);
+  font-size: 1.2rem;
+}
+
+.btn {
+  display: inline-block;
+  padding: 0.85rem 2rem;
+  font-family: "Orbitron", sans-serif;
+  font-size: 0.75rem;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  text-decoration: none;
+  border-radius: 4px;
+  border: 1px solid var(--cyan);
+  color: var(--bg0);
+  background: linear-gradient(135deg, var(--cyan), #67e8f9);
+  box-shadow: var(--glow);
+  transition: transform 0.15s, box-shadow 0.2s;
+}
+
+.btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 0 48px rgba(34, 211, 238, 0.35);
+}
+
+.btn-ghost {
+  background: transparent;
+  color: var(--cyan);
+  margin-left: 1rem;
+}
+
+.panel {
+  background: var(--glass);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 2rem;
+  backdrop-filter: blur(12px);
+  margin-bottom: 1.5rem;
+}
+
+.panel h2 {
+  font-family: "Orbitron", sans-serif;
+  font-size: 1.1rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--violet);
+  margin: 0 0 1rem;
+}
+
+.grid-3 {
+  display: grid;
+  gap: 1.25rem;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  margin-top: 2rem;
+}
+
+.stat {
+  text-align: center;
+  padding: 1.5rem;
+  border-radius: 8px;
+  border: 1px solid rgba(167, 139, 250, 0.2);
+  background: rgba(10, 22, 40, 0.6);
+}
+
+.stat strong {
+  font-family: "Orbitron", sans-serif;
+  font-size: 2rem;
+  color: var(--cyan);
+  display: block;
+}
+
+form.contact-form label {
+  display: block;
+  margin-bottom: 0.35rem;
+  color: var(--muted);
+  font-size: 0.95rem;
+  font-weight: 600;
+}
+
+form.contact-form input,
+form.contact-form textarea {
+  width: 100%;
+  margin-bottom: 1.1rem;
+  padding: 0.75rem 1rem;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  background: rgba(3, 7, 18, 0.8);
+  color: var(--text);
+  font-family: inherit;
+  font-size: 1rem;
+}
+
+form.contact-form textarea {
+  min-height: 160px;
+  resize: vertical;
+}
+
+form.contact-form button[type="submit"] {
+  cursor: pointer;
+  border: none;
+}
+
+.hp {
+  position: absolute;
+  left: -9999px;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+}
+
+.alert {
+  padding: 1rem 1.25rem;
+  border-radius: 8px;
+  margin-bottom: 1.25rem;
+  border: 1px solid var(--border);
+}
+
+.alert.ok {
+  background: rgba(34, 211, 238, 0.1);
+  color: var(--cyan);
+}
+
+.alert.err {
+  background: rgba(248, 113, 113, 0.1);
+  color: #fca5a5;
+  border-color: rgba(248, 113, 113, 0.35);
+}
+
+footer {
+  margin-top: 3rem;
+  padding-top: 2rem;
+  border-top: 1px solid var(--border);
+  text-align: center;
+  color: var(--muted);
+  font-size: 0.95rem;
+}
+
+footer a {
+  color: var(--cyan);
+}

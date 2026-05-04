@@ -12,6 +12,7 @@ from sqlalchemy.exc import OperationalError
 from models import (
     Agreement,
     AgreementStatus,
+    ContactSubmission,
     Lead,
     LeadStatus,
     MessageEvent,
@@ -91,6 +92,7 @@ class State(rx.State):
 
     def cc_contact_submissions(self):
         self.command_center_tab = "contact_submissions"
+        self.sync_db_views()
 
     def cc_tracking(self):
         self.command_center_tab = "tracking"
@@ -195,8 +197,8 @@ class State(rx.State):
     def clear_message(self):
         self.system_message = ""
 
-    def sync_db_views(self, _moment_display: str = ""):
-        """Bump revision so SQL-backed @rx.var reruns (Stripe/webhooks mutate SQLite outside Reflex)."""
+    def sync_db_views(self, *_args):
+        """Bump revision so SQL-backed @rx.var reruns (click / change events pass extra args)."""
         self.db_sync_tick += 1
 
     def refresh_signals(self):
@@ -606,6 +608,36 @@ class State(rx.State):
     @rx.var
     def backend_revenue_dollars(self) -> int:
         return int(self.backend_revenue_cents // 100)
+
+    @rx.var
+    def contact_submission_rows(self) -> list[dict[str, str]]:
+        _ = self.db_sync_tick
+        try:
+            with get_session() as session:
+                rows = (
+                    session.query(ContactSubmission)
+                    .order_by(ContactSubmission.id.desc())
+                    .limit(100)
+                    .all()
+                )
+                out: list[dict[str, str]] = []
+                for r in rows:
+                    created = r.created_at.isoformat() if r.created_at else ""
+                    out.append(
+                        {
+                            "id": str(r.id),
+                            "created_at": created,
+                            "name": str(r.name),
+                            "email": str(r.email),
+                            "company": str(r.company or "—"),
+                            "message": str(r.message)[:500],
+                            "source": str(r.source or "—"),
+                            "ip": str(r.ip_address or "—"),
+                        }
+                    )
+                return out
+        except OperationalError:
+            return []
 
     @rx.var
     def raw_db_rows(self) -> list[dict[str, str | int]]:

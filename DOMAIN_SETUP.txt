@@ -1,12 +1,17 @@
-autoyieldsystems.com still shows RevenueBringer? That HTML is NOT in this repo.
+autoyieldsystems.com must point at THIS Flask API only (server.py). If the browser shows a full old RevenueBringer marketing site (HTML/CSS) that is NOT this app, that host is still wired to a different Railway target.
 
-1) Open Railway project. Open EVERY service -> Settings -> Networking / Custom domains.
-2) Find which service lists "autoyieldsystems.com". If it is NOT "hvac-engine", REMOVE the domain from that service.
-3) On service "hvac-engine" ONLY -> add custom domain autoyieldsystems.com (and www if you use it). Save.
-4) Redeploy hvac-engine.
+Railway service name vs routing
+  In /health, railway_service is whatever Railway sets (often "RevenueBringer").
+  That value names THIS API deploy. It is NOT proof of wrong routing by itself.
+  Wrong routing = you get a different app's HTML (e.g. legacy static deploy), not this site's layout + footer links to /health.
+
+1) Open Railway → production. Open EVERY service → Settings → Networking / Custom domains.
+2) Remove autoyieldsystems.com (and www if used) from every service EXCEPT the Flask API (the one that runs server.py at repo root; Railway may list it as RevenueBringer or another name—match the service you deploy from this repo).
+3) On that service ONLY → add custom domain autoyieldsystems.com. Save.
+4) Redeploy that service.
 5) Test: curl https://autoyieldsystems.com/health
-   You MUST see JSON with "railway_service" and "railway_git_sha".
-   If you see 404 or HTML, the domain is still not on hvac-engine.
-
-Proof: curl https://autoyieldsystems.com/ (first lines must say FLASK API and show railway_git_sha).
-If you see RevenueBringer, you are hitting a different Railway (or static) target.
+   Expect JSON: ok, service autoyieldsystems, marketing_site true, railway_service, railway_git_sha, railway_environment.
+   Example fingerprint shape: railway_service=RevenueBringer, railway_git_sha=290ee73b5198, railway_environment=production.
+6) Routing proof without HTML: curl https://autoyieldsystems.com/ops/deploy-proof
+   Expect text/plain with FLASK API line plus Deploy fingerprint lines.
+7) The public marketing site is GET / and GET /contact (HTML). Command Center (Reflex) is a separate process; it reads the same DATABASE_URL as Flask—including table contact_submissions from the contact form.

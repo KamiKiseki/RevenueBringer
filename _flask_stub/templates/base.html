@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}AutoYield Systems{% endblock %}</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700&family=Rajdhani:wght@400;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="{{ url_for('static', filename='site.css') }}">
+</head>
+<body>
+  <div class="bg-grid" aria-hidden="true"></div>
+  <div class="bg-orb cyan" aria-hidden="true"></div>
+  <div class="bg-orb violet" aria-hidden="true"></div>
+  <div class="wrap">
+    <header class="site-header">
+      <a href="{{ url_for('public_landing') }}" class="logo">AutoYield</a>
+      <nav>
+        <a href="{{ url_for('public_landing') }}#mission">Mission</a>
+        <a href="{{ url_for('public_landing') }}#stack">Stack</a>
+        <a href="{{ url_for('public_contact') }}">Contact</a>
+      </nav>
+    </header>
+    {% block body %}{% endblock %}
+    <footer>
+      <p>AutoYield Systems — lead automation, proof-first outreach, voice &amp; contracts, Stripe-ready.</p>
+      <p><a href="/health">API health</a> · <a href="/ops/deploy-proof">Deploy proof (plain text)</a></p>
+    </footer>
+  </div>
+</body>
+</html>

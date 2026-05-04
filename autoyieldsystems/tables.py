@@ -91,6 +91,41 @@ def agreement_table() -> rx.Component:
     )
 
 
+def contact_submission_table() -> rx.Component:
+    return rx.table.root(
+        rx.table.header(
+            rx.table.row(
+                rx.table.column_header_cell("ID"),
+                rx.table.column_header_cell("When (UTC)"),
+                rx.table.column_header_cell("Name"),
+                rx.table.column_header_cell("Email"),
+                rx.table.column_header_cell("Company"),
+                rx.table.column_header_cell("Message (preview)"),
+                rx.table.column_header_cell("Source"),
+                rx.table.column_header_cell("IP"),
+            ),
+        ),
+        rx.table.body(
+            rx.foreach(
+                State.contact_submission_rows,
+                lambda row: rx.table.row(
+                    rx.table.cell(row["id"]),
+                    rx.table.cell(row["created_at"]),
+                    rx.table.cell(row["name"]),
+                    rx.table.cell(row["email"]),
+                    rx.table.cell(row["company"]),
+                    rx.table.cell(row["message"]),
+                    rx.table.cell(row["source"]),
+                    rx.table.cell(row["ip"]),
+                ),
+            ),
+        ),
+        variant="surface",
+        size="2",
+        width="100%",
+    )
+
+
 def raw_db_table() -> rx.Component:
     return rx.table.root(
         rx.table.header(

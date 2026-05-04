@@ -7,7 +7,7 @@ from uuid import uuid4
 
 import requests
 import stripe
-from flask import Flask, jsonify, redirect, request, send_file
+from flask import Flask, jsonify, redirect, render_template, request, send_file, url_for
 from sqlalchemy.exc import OperationalError
 
 from sqlalchemy.orm import Session
@@ -16,6 +16,7 @@ from models import (
     Agreement,
     AgreementStatus,
     AutomationRun,
+    ContactSubmission,
     DailyReport,
     Lead,
     LeadStatus,
@@ -1089,7 +1090,7 @@ def sanitize_notes():
 
 
 def _railway_fingerprint() -> dict[str, str]:
-    """Proves requests hit THIS Flask deploy (hvac-engine). If you see RevenueBringer HTML instead, DNS/custom domain is on the wrong target."""
+    """Proves requests hit THIS Flask deploy. Railway may set RAILWAY_SERVICE_NAME to e.g. RevenueBringer—that labels this API, not old static HTML."""
     return {
         "app": "server.py Flask (autoyieldsystems backend)",
         "railway_git_sha": (os.getenv("RAILWAY_GIT_COMMIT_SHA") or "unknown")[:12],
@@ -1098,13 +1099,13 @@ def _railway_fingerprint() -> dict[str, str]:
     }
 
 
-@app.get("/")
-def public_landing():
-    """Marketing site removed. Plain text + deploy fingerprint so you can verify routing."""
+def _deploy_proof_plain() -> tuple[str, int, dict[str, str]]:
+    """Plain-text routing proof (use when you do not want HTML from GET /)."""
     fp = _railway_fingerprint()
     lines = [
         "autoyieldsystems.com — THIS IS THE FLASK API (hvac-engine).",
-        "If you still see RevenueBringer HTML in a browser, that traffic is NOT reaching this process.",
+        "railway_service in the fingerprint is Railway's label for THIS service (often RevenueBringer).",
+        "If the browser shows a full styled RevenueBringer marketing page (HTML/CSS), that traffic is NOT reaching this process.",
         "Fix: Railway → only this service → attach custom domain. Remove domain from any other Railway service.",
         "",
         "Deploy fingerprint:",
@@ -1113,6 +1114,65 @@ def public_landing():
         f"  railway_environment={fp['railway_environment']}",
     ]
     return "\n".join(lines), 200, {"Content-Type": "text/plain; charset=utf-8"}
+
+
+@app.get("/ops/deploy-proof")
+def deploy_proof():
+    """Ops: same plain-text fingerprint that used to be served at GET /."""
+    return _deploy_proof_plain()
+
+
+@app.get("/")
+def public_landing():
+    """Futuristic public site; contact form rows go to contact_submissions (shared DB with Reflex Command Center)."""
+    return render_template("index.html")
+
+
+@app.get("/contact")
+def public_contact():
+    return render_template("contact.html", sent=request.args.get("sent") == "1", error=request.args.get("err"))
+
+
+@app.post("/contact")
+def public_contact_post():
+    """Persist to contact_submissions — same DATABASE_URL as models.py / Reflex rxconfig."""
+    hp = (request.form.get("company_url") or "").strip()
+    if hp:
+        return redirect(url_for("public_contact", err="1"))
+    name = (request.form.get("name") or "").strip()
+    email = (request.form.get("email") or "").strip().lower()
+    company = (request.form.get("company") or "").strip() or None
+    message = (request.form.get("message") or "").strip()
+    if len(name) < 2 or len(name) > 200:
+        return redirect(url_for("public_contact", err="1"))
+    if "@" not in email or len(email) > 255:
+        return redirect(url_for("public_contact", err="1"))
+    if len(message) < 10 or len(message) > 8000:
+        return redirect(url_for("public_contact", err="1"))
+    ip = (request.headers.get("X-Forwarded-For") or request.remote_addr or "")[:64]
+    try:
+        with get_session() as db:
+            db.add(
+                ContactSubmission(
+                    name=name,
+                    email=email,
+                    company=company,
+                    message=message,
+                    source="public_site",
+                    ip_address=ip or None,
+                )
+            )
+            db.commit()
+        log_system_event(
+            source="website",
+            action="contact_submission",
+            detail=f"name={name[:80]} email={email[:120]}",
+            level="info",
+        )
+    except Exception as exc:
+        _record_error("website", "contact_submission", exc)
+        return redirect(url_for("public_contact", err="1"))
+    return redirect(url_for("public_contact", sent="1"))
 
 
 @app.get("/success")
@@ -1148,7 +1208,7 @@ def robots_txt():
 
 @app.get("/health")
 def health():
-    out = {"ok": True, "service": "autoyieldsystems", "marketing_site": False}
+    out = {"ok": True, "service": "autoyieldsystems", "marketing_site": True}
     out.update(_railway_fingerprint())
     return jsonify(out)
 
@@ -1158,10 +1218,11 @@ def command_center_not_here():
     """Reflex serves the Command Center on its own process/URL — this API does not mount that UI."""
     body = (
         "This URL path is for the Reflex Command Center UI.\n\n"
-        "This Railway service (hvac-engine) runs Flask (server.py) only — it does not serve Reflex pages.\n"
+        "This Railway service (Flask API / server.py; Railway name may be e.g. RevenueBringer) does not serve Reflex pages.\n"
         "Run the Reflex app separately (e.g. `reflex run` locally, or a second Railway service / Reflex Hosting)\n"
         "and open the URL that Reflex gives you, usually with path /command-center on THAT host.\n\n"
-        "On THIS host, working endpoints include:  GET /  GET /health  (and POST /automation/*, /webhooks/*, etc.)\n"
+        "On THIS host: GET / and GET /contact (marketing), GET /health, GET /ops/deploy-proof (plain-text fingerprint), "
+        "POST /contact, POST /automation/*, /webhooks/*, etc.\n"
     )
     return body, 200, {"Content-Type": "text/plain; charset=utf-8"}
 
@@ -1179,20 +1240,24 @@ def handle_404(_e):
                 "ok": False,
                 "error": "not_found",
                 "path": p,
-                "hint": "Flask API only. Try GET /health . Command Center is Reflex — not on this host unless you add a Reflex service or proxy.",
+                "hint": "Flask API + marketing site. Try GET /health or GET /ops/deploy-proof. Command Center is Reflex on another process.",
             }
         ), 404
     msg = (
         f"404 — no route for: {p}\n\n"
         "This service is the autoyieldsystems Flask API (hvac-engine).\n"
-        "Try:  GET /     and  GET /health\n"
+        "Try:  GET /health   GET /ops/deploy-proof   (marketing: GET /  GET /contact)\n"
         "Command Center UI: run Reflex separately; it is not served at this path on this process.\n"
         "See GET /command-center for a longer explanation.\n"
     )
     return msg, 404, {"Content-Type": "text/plain; charset=utf-8"}
 
 
+# Gunicorn loads `server:app` without running __main__ — ensure tables exist per worker.
+init_db()
+
 if __name__ == "__main__":
-    init_db()
     port = int(os.environ.get("PORT", 8080))
-    app.run(host="0.0.0.0", port=port, debug=True)
+    # Never default debug=True in production (Railway); set FLASK_DEBUG=1 locally only.
+    _debug = os.getenv("FLASK_DEBUG", "").strip().lower() in {"1", "true", "yes", "on"}
+    app.run(host="0.0.0.0", port=port, debug=_debug, use_reloader=_debug)
