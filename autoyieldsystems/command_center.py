@@ -660,22 +660,6 @@ def command_center_page() -> rx.Component:
         width="100%",
     )
 
-    module_order = [
-        "dashboard",
-        "lead_engine",
-        "outreach",
-        "contact_submissions",
-        "tracking",
-        "payments",
-        "behavior_ai",
-        "deal_vault",
-        "dm_generator",
-        "cold_caller",
-        "automation",
-        "live_monitor",
-        "outreach_config",
-        "system_logs",
-    ]
     panels: dict[str, rx.Component] = {
         "dashboard": dashboard_panel,
         "lead_engine": lead_engine_panel,
@@ -693,9 +677,24 @@ def command_center_page() -> rx.Component:
         "system_logs": system_logs_panel,
     }
 
-    tab_content = panels["dashboard"]
-    for key in reversed(module_order[1:]):
-        tab_content = rx.cond(State.command_center_tab == key, panels[key], tab_content)
+    tab_content = rx.match(
+        State.command_center_tab,
+        ("dashboard", panels["dashboard"]),
+        ("lead_engine", panels["lead_engine"]),
+        ("outreach", panels["outreach"]),
+        ("contact_submissions", panels["contact_submissions"]),
+        ("tracking", panels["tracking"]),
+        ("payments", panels["payments"]),
+        ("behavior_ai", panels["behavior_ai"]),
+        ("deal_vault", panels["deal_vault"]),
+        ("dm_generator", panels["dm_generator"]),
+        ("cold_caller", panels["cold_caller"]),
+        ("automation", panels["automation"]),
+        ("live_monitor", panels["live_monitor"]),
+        ("outreach_config", panels["outreach_config"]),
+        ("system_logs", panels["system_logs"]),
+        panels["dashboard"],
+    )
 
     module_tabs = [
         ("Dashboard", "dashboard", State.cc_dashboard),
@@ -715,24 +714,6 @@ def command_center_page() -> rx.Component:
     ]
 
     return rx.box(
-        rx.box(
-            rx.moment(
-                date="2020-06-01T12:00:00",
-                from_now=True,
-                interval=4000,
-                on_change=State.sync_db_views,
-            ),
-            position="absolute",
-            width="1px",
-            height="1px",
-            overflow="hidden",
-            opacity="0",
-            pointer_events="none",
-            aria_hidden="true",
-            top="0",
-            left="0",
-            z_index="-1",
-        ),
         rx.vstack(
             rx.box(
                 width="100%",
