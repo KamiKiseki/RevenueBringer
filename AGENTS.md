@@ -61,3 +61,4 @@ After meaningful decisions in chat, append a dated one-line note under **Changel
 ## Changelog
 
 - **2026-05-03** — Added this `AGENTS.md` for cross-chat continuity; documented Instantly v2 field-name and custom-variable follow-ups against current `outreach.py`.
+- **2026-05-05** — Rewrote public Flask marketing templates (`_flask_stub/templates/index.html`, `base.html`, `contact.html`) to client-facing, non-technical AutoYield messaging.

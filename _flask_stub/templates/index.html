@@ -2,53 +2,80 @@
 {% block title %}AutoYield Systems — Yield automation for growth teams{% endblock %}
 {% block body %}
 <section class="hero">
-  <span class="tag">HVAC · Home services · B2B yield</span>
-  <h1>Automate proof. Close with confidence.</h1>
+  <span class="tag">For high-ticket local businesses</span>
+  <h1>Get qualified leads on autopilot.</h1>
   <p class="lead">
-    AutoYield Systems runs your value-first funnel: curated leads, Instantly-backed outreach,
-    Vapi voice touchpoints, PandaDoc agreements, and Stripe — with a private Command Center so you
-    own every correlation ID from first ping to paid.
+    AutoYield Systems helps local service companies turn outbound interest into booked opportunities
+    with a done-for-you lead engine, intelligent follow-up, and a simple Command Center.
   </p>
   <p>
-    <a class="btn" href="{{ url_for('public_contact') }}">Start a conversation</a>
-    <a class="btn btn-ghost" href="#mission">Learn more</a>
+    <a class="btn" href="{{ url_for('public_contact') }}">Book a strategy call</a>
+    <a class="btn btn-ghost" href="#who-we-serve">See who we serve</a>
   </p>
 </section>
 
-<section class="panel" id="mission">
-  <h2>Mission</h2>
+<section class="panel" id="who-we-serve">
+  <h2>Who We Serve</h2>
   <p>
-    We built AutoYield for operators who refuse black-box SaaS. Your pipeline is orchestrated in the open:
-    scout targets, queue proof deliveries, trigger tier offers, and watch agreements and webhooks land in
-    one database your team can audit — not scattered spreadsheets.
+    We work with high-ticket local businesses where one new customer can be worth thousands in revenue.
+    That includes HVAC, roofing, dental, legal, real estate, plumbing, auto repair, med spas, fitness,
+    and insurance teams.
   </p>
   <p>
-    Whether you run HVAC routes or white-label the engine for another vertical, the same spine applies:
-    <strong style="color: var(--cyan);">respect the inbox</strong>,
-    <strong style="color: var(--violet);">prove value before the ask</strong>,
-    and keep revenue events tied to real identities.
+    If your team wants consistent lead flow without adding more manual follow-up work,
+    AutoYield is built for that exact problem.
   </p>
 </section>
 
-<section class="panel" id="stack">
-  <h2>What runs under the hood</h2>
+<section class="panel" id="approach">
+  <h2>Our Approach</h2>
   <div class="grid-3">
     <div class="stat">
-      <strong>∞</strong>
-      <span>Lead engine &amp; dedupe</span>
+      <strong>A</strong>
+      <span>Target the right businesses in your market</span>
     </div>
     <div class="stat">
-      <strong>⚡</strong>
-      <span>Instantly campaigns + SMTP paths</span>
+      <strong>B</strong>
+      <span>Start conversations with qualified prospects</span>
     </div>
     <div class="stat">
-      <strong>◇</strong>
-      <span>Vapi · PandaDoc · Stripe webhooks</span>
+      <strong>C</strong>
+      <span>Move serious buyers to your calendar faster</span>
     </div>
   </div>
   <p style="margin-top: 1.5rem; color: var(--muted);">
-    Public pages you are reading now share the same data plane as your Command Center: one
-    <code style="color: var(--cyan);">DATABASE_URL</code>, one source of truth for submissions and deals.
+    Clear process, measurable activity, and a reliable pipeline your team can scale.
+  </p>
+</section>
+
+<section class="panel" id="results">
+  <h2>What You Get</h2>
+  <div class="grid-3">
+    <div class="stat">
+      <strong>1</strong>
+      <span>Consistent outbound lead flow</span>
+    </div>
+    <div class="stat">
+      <strong>2</strong>
+      <span>Faster response to interested prospects</span>
+    </div>
+    <div class="stat">
+      <strong>3</strong>
+      <span>More qualified conversations and closed deals</span>
+    </div>
+  </div>
+  <p style="margin-top: 1.5rem; color: var(--muted);">
+    You focus on serving clients. We handle the front-end lead process so your pipeline stays active.
+  </p>
+</section>
+
+<section class="panel" id="cta">
+  <h2>Ready To Grow?</h2>
+  <p>
+    Book a strategy call and we will map the best niche, city, and outreach plan for your business.
+  </p>
+  <p>
+    <a class="btn" href="{{ url_for('public_contact') }}">Book your call</a>
   </p>
 </section>
 {% endblock %}

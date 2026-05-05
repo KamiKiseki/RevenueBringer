@@ -17,15 +17,16 @@
     <header class="site-header">
       <a href="{{ url_for('public_landing') }}" class="logo">AutoYield</a>
       <nav>
-        <a href="{{ url_for('public_landing') }}#mission">Mission</a>
-        <a href="{{ url_for('public_landing') }}#stack">Stack</a>
+        <a href="{{ url_for('public_landing') }}#who-we-serve">Who We Serve</a>
+        <a href="{{ url_for('public_landing') }}#approach">Approach</a>
+        <a href="{{ url_for('public_landing') }}#results">Results</a>
         <a href="{{ url_for('public_contact') }}">Contact</a>
       </nav>
     </header>
     {% block body %}{% endblock %}
     <footer>
-      <p>AutoYield Systems — lead automation, proof-first outreach, voice &amp; contracts, Stripe-ready.</p>
-      <p><a href="/health">API health</a> · <a href="/ops/deploy-proof">Deploy proof (plain text)</a></p>
+      <p>AutoYield Systems — professional lead generation systems for high-ticket local businesses.</p>
+      <p><a href="{{ url_for('public_contact') }}">Book a strategy call</a></p>
     </footer>
   </div>
 </body>
