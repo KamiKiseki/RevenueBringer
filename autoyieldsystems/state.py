@@ -197,8 +197,11 @@ class State(rx.State):
     def clear_message(self):
         self.system_message = ""
 
-    def sync_db_views(self, *_args):
-        """Bump revision so SQL-backed @rx.var reruns (click / change events pass extra args)."""
+    def sync_db_views(self, _event=None, **_kw):
+        """Bump revision so SQL-backed @rx.var reruns.
+
+        Bound from `on_click` (one event arg), `rx.moment` on_change (may pass `_args=...`), or called with no args.
+        """
         self.db_sync_tick += 1
 
     def refresh_signals(self):
