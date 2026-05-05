@@ -70,16 +70,26 @@ def agreement_table() -> rx.Component:
                     rx.table.cell(
                         rx.cond(
                             row["stripe_checkout_url"] != "",
-                            row["stripe_checkout_url"],
-                            rx.text("—"),
+                            rx.text(
+                                row["stripe_checkout_url"],
+                                color="#7dd3fc",
+                                size="1",
+                                style={"word_break": "break-all", "font_family": "ui-monospace, monospace"},
+                            ),
+                            rx.text("—", color="#94a3b8"),
                         )
                     ),
                     rx.table.cell(row["correlation_id"]),
                     rx.table.cell(
                         rx.cond(
                             row["signed_pdf_url"] != "",
-                            row["signed_pdf_url"],
-                            rx.text("—"),
+                            rx.text(
+                                row["signed_pdf_url"],
+                                color="#7dd3fc",
+                                size="1",
+                                style={"word_break": "break-all", "font_family": "ui-monospace, monospace"},
+                            ),
+                            rx.text("—", color="#94a3b8"),
                         )
                     ),
                 ),

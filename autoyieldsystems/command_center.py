@@ -40,6 +40,7 @@ def command_center_page() -> rx.Component:
         rx.cond(
             State.system_message != "",
             rx.callout(State.system_message, icon="info", color_scheme="blue", width="100%"),
+            rx.fragment(),
         ),
         rx.hstack(
             neo_stat_tile(
@@ -513,14 +514,15 @@ def command_center_page() -> rx.Component:
                     rx.text("READY", color="#86efac", size="2"),
                     rx.text("NOT READY", color="#fca5a5", size="2"),
                 ),
-                rx.text(
-                    rx.cond(
-                        State.stripe_last_event_type != "",
-                        f"Last event: {State.stripe_last_event_type}",
-                        "Last event: none yet",
+                rx.cond(
+                    State.stripe_last_event_type != "",
+                    rx.text(
+                        "Last event: ",
+                        State.stripe_last_event_type,
+                        color="#cbd5e1",
+                        size="2",
                     ),
-                    color="#cbd5e1",
-                    size="2",
+                    rx.text("Last event: none yet", color="#cbd5e1", size="2"),
                 ),
                 rx.text(State.stripe_last_event_at, color="#94a3b8", size="1"),
                 spacing="1",
@@ -559,6 +561,7 @@ def command_center_page() -> rx.Component:
         rx.cond(
             State.system_message != "",
             rx.callout(State.system_message, icon="activity", color_scheme="blue", width="100%"),
+            rx.fragment(),
         ),
         rx.hstack(
             neo_stat_tile(
@@ -638,7 +641,7 @@ def command_center_page() -> rx.Component:
                         rx.text(row["detail"], color="#fca5a5", size="2"),
                         rx.cond(
                             row["correlation_id"] != "",
-                            rx.text(f"CID: {row['correlation_id']}", color="#93c5fd", size="1"),
+                            rx.text("CID: ", row["correlation_id"], color="#93c5fd", size="1"),
                             rx.fragment(),
                         ),
                         padding="0.55rem",
