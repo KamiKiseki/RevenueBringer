@@ -54,6 +54,13 @@ app = Flask(
     static_url_path="/assets",
 )
 
+def _env_flag(name: str, default: bool = False) -> bool:
+    raw = os.getenv(name)
+    if raw is None:
+        return default
+    return raw.strip().lower() in {"1", "true", "yes", "on"}
+
+
 # Support both naming styles.
 stripe.api_key = os.getenv("STRIPE_API_KEY", "") or os.getenv("STRIPE_SECRET_KEY", "")
 STRIPE_WEBHOOK_SECRET = os.getenv("STRIPE_WEBHOOK_SECRET", "")
@@ -63,10 +70,10 @@ STRIPE_CANCEL_URL = os.getenv("STRIPE_CANCEL_URL", "https://autoyieldsystems.com
 STRIPE_PRICE_TRIAL_300 = os.getenv("STRIPE_PRICE_TRIAL_300") or os.getenv("PRICE_TRIAL_300", "")
 STRIPE_PRICE_MONTH_500 = os.getenv("STRIPE_PRICE_MONTH_500") or os.getenv("PRICE_MONTH_500", "")
 FREE_HOOK_TARGET = int(os.getenv("FREE_HOOK_LEAD_TARGET", "2"))
-VALUE_FIRST_FUNNEL = os.getenv("VALUE_FIRST_FUNNEL", "true").strip().lower() in {"1", "true", "yes", "on"}
+VALUE_FIRST_FUNNEL = _env_flag("VALUE_FIRST_FUNNEL", True)
 VAPI_API_KEY = os.getenv("VAPI_API_KEY", "")
 VAPI_CALL_WEBHOOK_URL = os.getenv("VAPI_CALL_WEBHOOK_URL", "")
-VOICE_NOTIFICATION_MODE = os.getenv("VOICE_NOTIFICATION_MODE", "true").strip().lower() in {"1", "true", "yes", "on"}
+VOICE_NOTIFICATION_MODE = _env_flag("VOICE_NOTIFICATION_MODE", True)
 PANDADOC_API_KEY = os.getenv("PANDADOC_API_KEY", "")
 PANDADOC_TEMPLATE_ID = os.getenv("PANDADOC_TEMPLATE_ID", "VrZWq6WpiDVFMkh328wsb9")
 PANDADOC_SENDER_EMAIL = os.getenv("PANDADOC_SENDER_EMAIL", "")
@@ -633,11 +640,17 @@ def stripe_webhook():
     payload = request.data
     signature = request.headers.get("Stripe-Signature", "")
 
+    if not STRIPE_WEBHOOK_SECRET:
+        log_system_event(
+            source="stripe",
+            action="webhook_missing_secret",
+            detail="STRIPE_WEBHOOK_SECRET is required to verify Stripe webhook signatures.",
+            level="error",
+        )
+        return jsonify({"ok": False, "error": "stripe webhook verification is not configured"}), 400
+
     try:
-        if STRIPE_WEBHOOK_SECRET:
-            event = stripe.Webhook.construct_event(payload, signature, STRIPE_WEBHOOK_SECRET)
-        else:
-            event = request.get_json(force=True)
+        event = stripe.Webhook.construct_event(payload, signature, STRIPE_WEBHOOK_SECRET)
     except Exception as exc:
         _record_error("stripe", "webhook_parse", exc)
         return jsonify({"ok": False, "error": str(exc)}), 400
@@ -1195,4 +1208,5 @@ def handle_404(_e):
 if __name__ == "__main__":
     init_db()
     port = int(os.environ.get("PORT", 8080))
-    app.run(host="0.0.0.0", port=port, debug=True)
+    debug = _env_flag("FLASK_DEBUG")
+    app.run(host="0.0.0.0", port=port, debug=debug, use_reloader=debug)
