@@ -12,6 +12,7 @@ from sqlalchemy.exc import OperationalError
 
 from sqlalchemy.orm import Session
 
+from runtime_config import flask_debug_enabled
 from models import (
     Agreement,
     AgreementStatus,
@@ -1195,4 +1196,4 @@ def handle_404(_e):
 if __name__ == "__main__":
     init_db()
     port = int(os.environ.get("PORT", 8080))
-    app.run(host="0.0.0.0", port=port, debug=True)
+    app.run(host="0.0.0.0", port=port, debug=flask_debug_enabled())
