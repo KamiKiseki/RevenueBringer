@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import os
 import re
+import sys
 from dataclasses import dataclass
 from typing import Any
 import random
@@ -9,7 +10,7 @@ from urllib.parse import quote
 
 import requests
 
-from models import log_system_event
+from models import Lead, LeadStatus, get_session, init_db, log_system_event
 
 _LAST_FETCH_META: dict[str, str] = {
     "source": "none",
@@ -312,7 +313,9 @@ def fetch_business_leads(
     """
     limit = max(1, min(500, int(limit)))
     token = os.getenv("APIFY_API_TOKEN", "").strip()
-    actor_id = os.getenv("APIFY_GOOGLE_MAPS_ACTOR_ID", "compass/google-maps-scraper").strip()
+    # Apify store "Google Maps Scraper" (slugs like apify/google-maps-scraper 404 via REST).
+    # Default matches the current store actor: https://apify.com/compass/crawler-google-places
+    actor_id = os.getenv("APIFY_GOOGLE_MAPS_ACTOR_ID", "compass/crawler-google-places").strip()
     allow_sample = os.getenv("ALLOW_SAMPLE_LEADS", "false").strip().lower() in {"1", "true", "yes", "on"}
     if not token:
         if allow_sample:
@@ -332,6 +335,10 @@ def fetch_business_leads(
     run_input = _apify_run_input(niche=niche, location=location, limit=limit, postal_codes=postal_codes)
     path_actor = _apify_path_actor(actor_id)
     run_url = f"https://api.apify.com/v2/acts/{path_actor}/run-sync-get-dataset-items"
+    print(f"[SCRAPER_DEBUG] actor_id={actor_id} normalized_actor={_normalize_actor_id(actor_id)}")
+    print(f"[SCRAPER_DEBUG] run_url={run_url}")
+    print(f"[SCRAPER_DEBUG] params={{'token': '***', 'format': 'json', 'clean': 'true'}}")
+    print(f"[SCRAPER_DEBUG] run_input={run_input}")
     try:
         resp = requests.post(
             run_url,
@@ -339,7 +346,9 @@ def fetch_business_leads(
             json=run_input,
             timeout=120,
         )
+        print(f"[SCRAPER_DEBUG] http_status={resp.status_code}")
         raw = resp.json()
+        print(f"[SCRAPER_DEBUG] raw_response={str(raw)[:2000]}")
         if resp.status_code >= 300:
             detail = f"Apify HTTP {resp.status_code} for actor={actor_id} body={str(raw)[:300]}"
             if allow_sample:
@@ -362,6 +371,7 @@ def fetch_business_leads(
 
         items = raw if isinstance(raw, list) else []
     except Exception as exc:
+        print(f"[SCRAPER_DEBUG] exception={type(exc).__name__}: {exc}")
         if allow_sample:
             _set_fetch_meta(
                 source="sample",
@@ -451,3 +461,54 @@ __all__ = [
     "get_random_target",
     "get_last_fetch_meta",
 ]
+
+
+def _upsert_scraped_leads_cli(leads: list[ScrapedLead]) -> tuple[int, int]:
+    inserted = 0
+    skipped = 0
+    with get_session() as session:
+        for lead in leads:
+            clean_name = clean_business_name(lead.business_name)
+            exists = session.query(Lead).filter(Lead.business_name == clean_name).first()
+            if exists:
+                skipped += 1
+                continue
+            session.add(
+                Lead(
+                    business_name=clean_name,
+                    status=LeadStatus.QUEUED,
+                    email=lead.email,
+                    website=lead.website_url,
+                    phone=lead.phone,
+                    owner_name=lead.owner_name,
+                    niche=lead.niche,
+                    location=lead.location,
+                    street_address=lead.street_address,
+                    street_name=lead.street_name or extract_street_name(lead.street_address),
+                )
+            )
+            inserted += 1
+        session.commit()
+    return inserted, skipped
+
+
+if __name__ == "__main__":
+    if len(sys.argv) < 3:
+        print('Usage: python scraper.py "<NICHE>" "<CITY>" [LIMIT]')
+        raise SystemExit(1)
+    niche = sys.argv[1].strip() or "HVAC"
+    city = sys.argv[2].strip() or "United States"
+    try:
+        limit = int(sys.argv[3]) if len(sys.argv) >= 4 else 20
+    except ValueError:
+        print("LIMIT must be an integer.")
+        raise SystemExit(1)
+    limit = max(1, min(500, limit))
+
+    init_db()
+    scraped = fetch_business_leads(niche=niche, location=city, limit=limit)
+    inserted, skipped = _upsert_scraped_leads_cli(scraped)
+    print(
+        f"[SCRAPER] niche={niche} city={city} fetched={len(scraped)} "
+        f"saved={inserted} skipped_duplicates={skipped}"
+    )
