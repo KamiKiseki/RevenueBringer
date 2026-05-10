@@ -253,6 +253,24 @@ class ContactSubmission(Base):
     )
 
 
+class EmailSequence(Base):
+    """AI-generated 3-step cold email sequence for Instantly-style bulk import."""
+
+    __tablename__ = "email_sequences"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    lead_id: Mapped[int] = mapped_column(Integer, nullable=False, unique=True, index=True)
+    email_1_subject: Mapped[str] = mapped_column(String(500), nullable=False)
+    email_1_body: Mapped[str] = mapped_column(Text, nullable=False)
+    email_2_subject: Mapped[str] = mapped_column(String(500), nullable=False)
+    email_2_body: Mapped[str] = mapped_column(Text, nullable=False)
+    email_3_subject: Mapped[str] = mapped_column(String(500), nullable=False)
+    email_3_body: Mapped[str] = mapped_column(Text, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, default=lambda: datetime.now(timezone.utc), index=True
+    )
+
+
 class SystemLog(Base):
     __tablename__ = "system_logs"
 
