@@ -60,7 +60,7 @@ def main() -> int:
             page.goto(args.cc_url, wait_until="domcontentloaded", timeout=args.timeout_ms)
             page.wait_for_timeout(300)
             # Page should include a recognizable header.
-            page.get_by_text("Unified Operations Dashboard").first.wait_for(timeout=args.timeout_ms)
+            page.get_by_text("AutoYield Command Center").first.wait_for(timeout=args.timeout_ms)
 
         results.append(_run_step("command_center_load", go_cc))
 
@@ -69,17 +69,12 @@ def main() -> int:
             ("Dashboard", "Dashboard"),
             ("Lead Engine", "Lead Engine"),
             ("Outreach", "Outreach"),
+            ("Cold Caller", "Cold Caller"),
+            ("Deal Vault", "Deal Vault"),
+            ("Payments", "Payments"),
             ("Contact Submissions", "Contact Submissions"),
             ("Tracking", "Tracking"),
-            ("Payments", "Payments"),
-            ("Behavior AI", "Behavior AI"),
-            ("Deal Vault", "Deal Vault"),
-            ("DM Generator", "DM Generator"),
-            ("Cold Caller", "Cold Caller"),
-            ("Automation", "Automation"),
-            ("Live Monitor", "Live Monitor"),
-            ("Outreach Config", "Outreach Config"),
-            ("System Logs", "System Logs"),
+            ("System Health", "System Health"),
         ]
 
         for tab_label, expected_heading in tab_checks:

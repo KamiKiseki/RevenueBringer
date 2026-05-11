@@ -10,652 +10,408 @@ from .layout import (
     module_tab_button,
     neo_stat_tile,
     neo_table_shell,
-    placeholder_module,
 )
 from .state import State
-from .tables import agreement_table, contact_submission_table, lead_rows, raw_db_table
 
 
 def command_center_page() -> rx.Component:
     dashboard_panel = glass_card(
-        rx.hstack(
-            rx.text("Dashboard", weight="bold", color="white", size="4"),
-            rx.spacer(),
-            rx.button(
-                "Global Killswitch",
-                on_click=State.global_killswitch,
-                color_scheme="red",
-                variant="solid",
-                style={"letter_spacing": "0.06em"},
-            ),
-            width="100%",
-            align_items="center",
-        ),
+        rx.text("Dashboard", weight="bold", color="white", size="4"),
         rx.text(
-            "Executive pulse for the whole stack — calls, conversion, revenue. Deeper drill-downs "
-            "live in sibling modules.",
+            "Real-time operating snapshot for today and this month.",
             color="#94a3b8",
             size="2",
         ),
-        rx.cond(
-            State.system_message != "",
-            rx.callout(State.system_message, icon="info", color_scheme="blue", width="100%"),
-            rx.fragment(),
+        rx.hstack(
+            neo_stat_tile("Total Leads Scraped Today", rx.text(State.today_leads_scraped, size="6", color="#a5f3fc", weight="bold")),
+            neo_stat_tile("Emails Sent Today", rx.text(State.today_emails_sent, size="6", color="#a5f3fc", weight="bold")),
+            neo_stat_tile("Calls Made Today", rx.text(State.today_calls_made, size="6", color="#a5f3fc", weight="bold")),
+            spacing="3", width="100%", flex_wrap="wrap",
         ),
         rx.hstack(
+            neo_stat_tile("Replies Received Today", rx.text(State.today_replies_received, size="6", color="#d8b4fe", weight="bold")),
+            neo_stat_tile("Deals Closed This Month", rx.text(State.month_deals_closed, size="6", color="#d8b4fe", weight="bold")),
             neo_stat_tile(
-                "Pulse · Calls",
-                rx.text(State.total_calls_made, size="7", color="#a5f3fc", weight="bold"),
+                "Revenue Collected This Month",
+                rx.hstack(rx.text("$", color="#67e8f9"), rx.text(State.month_revenue_collected, size="6", color="#67e8f9", weight="bold"), spacing="1"),
             ),
-            neo_stat_tile(
-                "Yield · Conversion",
-                rx.text(State.conversion_rate_text, size="7", color="#d8b4fe", weight="bold"),
-            ),
-            neo_stat_tile(
-                "Capture · Yield",
-                rx.hstack(
-                    rx.text("$", size="7", color="#67e8f9", weight="bold"),
-                    rx.text(State.revenue_total, size="7", color="#67e8f9", weight="bold"),
-                    spacing="1",
-                    align_items="center",
-                ),
-            ),
-            spacing="4",
-            width="100%",
-            align_items="stretch",
-            flex_wrap="wrap",
-        ),
-        rx.hstack(
-            neo_stat_tile(
-                "Backend · Leads",
-                rx.text(State.backend_total_leads, size="6", color="#93c5fd", weight="bold"),
-            ),
-            neo_stat_tile(
-                "Backend · Conversions",
-                rx.text(State.backend_conversions, size="6", color="#c4b5fd", weight="bold"),
-            ),
-            neo_stat_tile(
-                "Backend · Yield",
-                rx.hstack(
-                    rx.text("$", size="6", color="#67e8f9", weight="bold"),
-                    rx.text(State.backend_revenue_dollars, size="6", color="#67e8f9", weight="bold"),
-                    spacing="1",
-                    align_items="center",
-                ),
-            ),
-            spacing="3",
-            width="100%",
-            align_items="stretch",
-            flex_wrap="wrap",
-        ),
-        rx.hstack(
-            neo_stat_tile(
-                "Daily Cap",
-                rx.text(State.cap_limit, size="5", color="#e2e8f0", weight="bold"),
-            ),
-            neo_stat_tile(
-                "Sent Today",
-                rx.text(State.cap_used_today, size="5", color="#facc15", weight="bold"),
-            ),
-            neo_stat_tile(
-                "Remaining Today",
-                rx.text(State.cap_remaining_today, size="5", color="#34d399", weight="bold"),
-            ),
-            spacing="3",
-            width="100%",
-            align_items="stretch",
-            flex_wrap="wrap",
+            spacing="3", width="100%", flex_wrap="wrap",
         ),
         rx.callout(
-            rx.vstack(
-                rx.text("Current Random Target", weight="bold"),
-                rx.text(
-                    rx.cond(
-                        State.current_target_niche != "",
-                        State.current_target_niche,
-                        "Pending cycle",
-                    ),
-                    color="#cbd5e1",
-                    size="2",
-                ),
-                rx.text(
-                    rx.cond(
-                        State.current_target_location != "",
-                        State.current_target_location,
-                        "Pending cycle",
-                    ),
-                    color="#94a3b8",
-                    size="2",
-                ),
-                spacing="1",
-                align_items="start",
-            ),
-            icon="map_pin",
+            "Machine status: if these cards are moving, your growth engine is actively running.",
+            icon="activity",
             color_scheme="cyan",
             width="100%",
         ),
-        rx.hstack(
-            rx.button(
-                "Reset Target",
-                on_click=State.force_next_target,
-                color_scheme="cyan",
-                variant="outline",
-            ),
-            rx.button(
-                "Retry Last Failed",
-                on_click=State.retry_last_failed,
-                color_scheme="orange",
-                variant="outline",
-            ),
-            spacing="3",
-            flex_wrap="wrap",
-        ),
-        rx.callout(
-            rx.vstack(
-                rx.text("Conversion Funnel", weight="bold"),
-                rx.text(State.conversion_funnel_text, color="#cbd5e1", size="2"),
-                spacing="1",
-                align_items="start",
-            ),
-            icon="bar_chart_3",
-            color_scheme="purple",
-            width="100%",
-        ),
-        rx.box(
-            rx.text("Live Activity Feed", weight="bold", color="white", size="3"),
-            rx.vstack(
-                rx.foreach(
-                    State.recent_activity_feed,
-                    lambda row: rx.box(
-                        rx.hstack(
-                            rx.badge(row["channel"], color_scheme="cyan", variant="soft"),
-                            rx.badge(row["status"], color_scheme="gray", variant="surface"),
-                            rx.text(row["at"], color="#94a3b8", size="1"),
-                            spacing="2",
-                            align_items="center",
-                            flex_wrap="wrap",
-                        ),
-                        rx.text(row["detail"], color="#dbeafe", size="2"),
-                        padding="0.55rem",
-                        border_radius="10px",
-                        border="1px solid rgba(56, 189, 248, 0.16)",
-                        background="rgba(0,0,0,0.2)",
-                        width="100%",
-                    ),
+        rx.text("Activity Feed", weight="bold", color="white", size="3"),
+        rx.vstack(
+            rx.foreach(
+                State.activity_feed_rows,
+                lambda row: rx.box(
+                    rx.text(row["at"], size="1", color="#94a3b8"),
+                    rx.text(row["text"], size="2", color="#dbeafe"),
+                    border="1px solid rgba(56, 189, 248, 0.16)", border_radius="10px", padding="0.6rem", width="100%", background="rgba(0,0,0,0.2)",
                 ),
-                spacing="2",
-                width="100%",
-                align_items="stretch",
             ),
-            width="100%",
-        ),
-        rx.box(
-            rx.text("Errors Safety Net", weight="bold", color="white", size="3"),
-            rx.vstack(
-                rx.cond(
-                    State.automation_error_feed != [],
-                    rx.foreach(
-                        State.automation_error_feed,
-                        lambda row: rx.box(
-                            rx.hstack(
-                                rx.badge(row["kind"], color_scheme="red", variant="soft"),
-                                rx.text(row["at"], color="#94a3b8", size="1"),
-                                spacing="2",
-                                align_items="center",
-                                flex_wrap="wrap",
-                            ),
-                            rx.text(row["detail"], color="#fecaca", size="2"),
-                            padding="0.55rem",
-                            border_radius="10px",
-                            border="1px solid rgba(248, 113, 113, 0.22)",
-                            background="rgba(40,0,0,0.16)",
-                            width="100%",
-                        ),
-                    ),
-                    rx.text("No recent critical errors.", color="#86efac", size="2"),
-                ),
-                spacing="2",
-                width="100%",
-                align_items="stretch",
-            ),
-            width="100%",
-        ),
-        rx.button(
-            "Refresh signals",
-            on_click=State.refresh_signals,
-            color_scheme="cyan",
-            variant="outline",
-            style={"letter_spacing": "0.08em"},
+            width="100%", align_items="stretch",
         ),
         width="100%",
     )
 
     lead_engine_panel = glass_card(
         rx.text("Lead Engine", weight="bold", color="white", size="4"),
-        rx.text(
-            "Scout pipeline: niche, geo, batch size → database. Queue handoff happens in Outreach.",
-            color="#94a3b8",
-            size="2",
+        rx.text("Run scrape jobs and monitor newly discovered businesses.", color="#94a3b8", size="2"),
+        rx.hstack(
+            neo_stat_tile("Total Leads In Database", rx.text(State.lead_engine_total, size="6", color="#a5f3fc", weight="bold")),
+            width="100%",
         ),
         rx.hstack(
-            rx.input(
-                placeholder="Niche (e.g. HVAC, Med Spa)",
+            rx.select(
+                ["HVAC", "Roofing", "Dental", "Law Firms", "Real Estate", "Plumbers", "Auto Body", "Med Spas", "Gyms", "Insurance"],
                 value=State.niche_val,
                 on_change=State.set_niche_val,
-                flex="1",
+                placeholder="Select niche",
+                width="260px",
             ),
-            rx.input(
-                placeholder="Location",
-                value=State.location_val,
-                on_change=State.set_location_val,
-                flex="1",
-            ),
-            rx.input(
-                placeholder="Lead count",
-                value=State.lead_count_str,
-                on_change=State.set_lead_count_str,
-                width="120px",
-            ),
-            rx.button(
-                "Deploy scout",
-                on_click=State.run_scout,
-                color_scheme="cyan",
-                variant="solid",
-                style={"letter_spacing": "0.06em"},
-            ),
-            spacing="4",
-            width="100%",
-            flex_wrap="wrap",
-            align_items="center",
+            rx.input(placeholder="City", value=State.location_val, on_change=State.set_location_val, width="260px"),
+            rx.button("Run Scraper", on_click=State.run_scout, color_scheme="cyan", variant="solid"),
+            spacing="3", flex_wrap="wrap",
         ),
-        rx.text("Lead grid", weight="bold", color="white", size="3"),
-        rx.hstack(
-            rx.input(
-                placeholder="Search business name…",
-                value=State.search_query,
-                on_change=State.set_search_query,
-                flex="1",
-            ),
-            rx.select(
-                ["all", "queued", "emailed", "paid", "delivered", "active_client"],
-                value=State.status_filter,
-                on_change=State.set_status_filter,
-                width="200px",
-            ),
-            spacing="3",
-            width="100%",
+        neo_table_shell(
+            rx.table.root(
+                rx.table.header(rx.table.row(
+                    rx.table.column_header_cell("Business Name"),
+                    rx.table.column_header_cell("Phone Number"),
+                    rx.table.column_header_cell("City"),
+                    rx.table.column_header_cell("Niche"),
+                    rx.table.column_header_cell("Date Scraped"),
+                    rx.table.column_header_cell("Status"),
+                )),
+                rx.table.body(
+                    rx.foreach(
+                        State.lead_engine_rows,
+                        lambda row: rx.table.row(
+                            rx.table.cell(row["business_name"]),
+                            rx.table.cell(row["phone"]),
+                            rx.table.cell(row["city"]),
+                            rx.table.cell(row["niche"]),
+                            rx.table.cell(row["date_scraped"]),
+                            rx.table.cell(row["status"]),
+                        ),
+                    )
+                ),
+                variant="surface", size="2", width="100%",
+            )
         ),
-        neo_table_shell(lead_rows()),
         width="100%",
     )
 
     outreach_panel = glass_card(
         rx.text("Outreach", weight="bold", color="white", size="4"),
-        rx.text(
-            "Transmit queued leads into Instantly — paired with Outreach Config for keys/campaign.",
-            color="#94a3b8",
-            size="2",
+        rx.text("Campaign momentum and reply signals from outbound email.", color="#94a3b8", size="2"),
+        neo_table_shell(
+            rx.table.root(
+                rx.table.header(rx.table.row(
+                    rx.table.column_header_cell("Campaign Name"),
+                    rx.table.column_header_cell("Emails Sent"),
+                    rx.table.column_header_cell("Open Rate"),
+                    rx.table.column_header_cell("Reply Rate"),
+                    rx.table.column_header_cell("Leads In Sequence"),
+                    rx.table.column_header_cell("Status"),
+                )),
+                rx.table.body(
+                    rx.foreach(
+                        State.outreach_campaign_rows,
+                        lambda row: rx.table.row(
+                            rx.table.cell(row["campaign_name"]),
+                            rx.table.cell(row["emails_sent"]),
+                            rx.table.cell(row["open_rate"]),
+                            rx.table.cell(row["reply_rate"]),
+                            rx.table.cell(row["leads_in_sequence"]),
+                            rx.table.cell(
+                                rx.cond(
+                                    row["status"] == "active",
+                                    rx.badge("active", color_scheme="green", variant="soft"),
+                                    rx.badge("paused", color_scheme="gray", variant="soft"),
+                                )
+                            ),
+                        ),
+                    )
+                ),
+                variant="surface", size="2", width="100%",
+            )
         ),
-        neo_stat_tile(
-            "Queued · Ready",
-            rx.text(State.queued_leads_count, size="7", color="#a5f3fc", weight="bold"),
+        rx.text("Recent Replies", weight="bold", color="white", size="3"),
+        neo_table_shell(
+            rx.table.root(
+                rx.table.header(rx.table.row(
+                    rx.table.column_header_cell("Who Replied"),
+                    rx.table.column_header_cell("What They Said"),
+                    rx.table.column_header_cell("Time"),
+                )),
+                rx.table.body(
+                    rx.foreach(
+                        State.outreach_reply_rows,
+                        lambda row: rx.table.row(
+                            rx.table.cell(row["who"]),
+                            rx.table.cell(row["what"]),
+                            rx.table.cell(row["when"]),
+                        ),
+                    )
+                ),
+                variant="surface", size="2", width="100%",
+            )
         ),
-        rx.button(
-            "Transmit queue → Instantly",
-            on_click=State.send_outreach,
-            variant="solid",
-            color_scheme="cyan",
-            style={"letter_spacing": "0.06em"},
+        width="100%",
+    )
+
+    cold_caller_panel = glass_card(
+        rx.text("Cold Caller", weight="bold", color="white", size="4"),
+        rx.text("Elliot call outcomes and live call-performance breakdown.", color="#94a3b8", size="2"),
+        rx.hstack(
+            neo_stat_tile("Total Calls Today", rx.text(State.cold_caller_summary["total_calls_today"], size="6", color="#a5f3fc", weight="bold")),
+            neo_stat_tile("Interested", rx.text(State.cold_caller_summary["interested"], size="6", color="#34d399", weight="bold")),
+            neo_stat_tile("Not Interested", rx.text(State.cold_caller_summary["not_interested"], size="6", color="#fca5a5", weight="bold")),
+            neo_stat_tile("Callbacks", rx.text(State.cold_caller_summary["callbacks"], size="6", color="#facc15", weight="bold")),
+            spacing="3", width="100%", flex_wrap="wrap",
+        ),
+        neo_table_shell(
+            rx.table.root(
+                rx.table.header(rx.table.row(
+                    rx.table.column_header_cell("Prospect Name"),
+                    rx.table.column_header_cell("Business"),
+                    rx.table.column_header_cell("Phone Number"),
+                    rx.table.column_header_cell("Call Time"),
+                    rx.table.column_header_cell("Call Duration"),
+                    rx.table.column_header_cell("Outcome"),
+                    rx.table.column_header_cell("Recording"),
+                )),
+                rx.table.body(
+                    rx.foreach(
+                        State.cold_caller_rows,
+                        lambda row: rx.table.row(
+                            rx.table.cell(row["prospect_name"]),
+                            rx.table.cell(row["business"]),
+                            rx.table.cell(row["phone"]),
+                            rx.table.cell(row["call_time"]),
+                            rx.table.cell(row["call_duration"]),
+                            rx.table.cell(
+                                rx.cond(
+                                    row["outcome"] == "Interested",
+                                    rx.badge("Interested", color_scheme="green", variant="soft"),
+                                    rx.cond(
+                                        row["outcome"] == "Not Interested",
+                                        rx.badge("Not Interested", color_scheme="red", variant="soft"),
+                                        rx.cond(
+                                            row["outcome"] == "Callback Requested",
+                                            rx.badge("Callback Requested", color_scheme="yellow", variant="soft"),
+                                            rx.badge(row["outcome"], color_scheme="gray", variant="soft"),
+                                        ),
+                                    ),
+                                )
+                            ),
+                            rx.table.cell(rx.cond(row["recording"] != "", rx.text("Play Recording", color="#7dd3fc"), rx.text("—"))),
+                        ),
+                    )
+                ),
+                variant="surface", size="2", width="100%",
+            )
+        ),
+        width="100%",
+    )
+
+    def kanban_col(title: str, rows):
+        return rx.box(
+            rx.text(title, weight="bold", color="#e2e8f0", size="2"),
+            rx.vstack(
+                rx.foreach(
+                    rows,
+                    lambda row: rx.box(
+                        rx.text(row["business_name"], color="white", weight="bold", size="2"),
+                        rx.text(f"{row['niche']} · {row['city']}", color="#94a3b8", size="1"),
+                        rx.text(f"Last: {row['last_action']}", color="#7dd3fc", size="1"),
+                        border="1px solid rgba(56, 189, 248, 0.16)", border_radius="10px", padding="0.55rem", width="100%", background="rgba(0,0,0,0.22)",
+                    ),
+                ),
+                align_items="stretch", width="100%", spacing="2",
+            ),
+            min_width="200px", width="100%",
+        )
+
+    deal_vault_panel = glass_card(
+        rx.text("Deal Vault", weight="bold", color="white", size="4"),
+        rx.text("Pipeline stage visibility from first signal to active client.", color="#94a3b8", size="2"),
+        rx.hstack(
+            kanban_col("New Reply", State.deal_kanban["new_reply"]),
+            kanban_col("Call Booked", State.deal_kanban["call_booked"]),
+            kanban_col("Proposal Sent", State.deal_kanban["proposal_sent"]),
+            kanban_col("Agreement Signed", State.deal_kanban["agreement_signed"]),
+            kanban_col("Payment Received", State.deal_kanban["payment_received"]),
+            kanban_col("Active Client", State.deal_kanban["active_client"]),
+            spacing="3", width="100%", overflow_x="auto", align_items="start",
+        ),
+        width="100%",
+    )
+
+    payments_panel = glass_card(
+        rx.text("Payments", weight="bold", color="white", size="4"),
+        rx.text("Revenue intelligence and transaction-level Stripe visibility.", color="#94a3b8", size="2"),
+        rx.hstack(
+            neo_stat_tile("Total Revenue This Month", rx.hstack(rx.text("$"), rx.text(State.payment_summary["month_revenue"], weight="bold"), spacing="1")),
+            neo_stat_tile("Total Revenue All Time", rx.hstack(rx.text("$"), rx.text(State.payment_summary["all_time_revenue"], weight="bold"), spacing="1")),
+            neo_stat_tile("Active Paying Clients", rx.text(State.payment_summary["active_clients"], weight="bold")),
+            neo_stat_tile("Failed Payments", rx.text(State.payment_summary["failed_payments"], weight="bold")),
+            spacing="3", width="100%", flex_wrap="wrap",
+        ),
+        neo_table_shell(
+            rx.table.root(
+                rx.table.header(rx.table.row(
+                    rx.table.column_header_cell("Client Name"),
+                    rx.table.column_header_cell("Plan"),
+                    rx.table.column_header_cell("Amount"),
+                    rx.table.column_header_cell("Date"),
+                    rx.table.column_header_cell("Status"),
+                )),
+                rx.table.body(
+                    rx.foreach(
+                        State.payment_rows,
+                        lambda row: rx.table.row(
+                            rx.table.cell(row["client_name"]),
+                            rx.table.cell(row["plan"]),
+                            rx.table.cell(row["amount"]),
+                            rx.table.cell(row["date"]),
+                            rx.table.cell(
+                                rx.cond(
+                                    row["status"] == "paid",
+                                    rx.badge("paid", color_scheme="green", variant="soft"),
+                                    rx.cond(
+                                        row["status"] == "failed",
+                                        rx.badge("failed", color_scheme="red", variant="soft"),
+                                        rx.badge(row["status"], color_scheme="gray", variant="soft"),
+                                    ),
+                                )
+                            ),
+                        ),
+                    )
+                ),
+                variant="surface", size="2", width="100%",
+            )
         ),
         width="100%",
     )
 
     contact_submissions_panel = glass_card(
         rx.text("Contact Submissions", weight="bold", color="white", size="4"),
-        rx.text(
-            "Rows from POST /contact on the Flask site (autoyieldsystems.com). Same DATABASE_URL as this Command Center — refresh tab or click Refresh after new submissions.",
-            color="#94a3b8",
-            size="2",
+        rx.text("Inbound hand-raisers from autoyieldsystems.com (priority pipeline).", color="#94a3b8", size="2"),
+        neo_table_shell(
+            rx.table.root(
+                rx.table.header(rx.table.row(
+                    rx.table.column_header_cell("Name"),
+                    rx.table.column_header_cell("Email"),
+                    rx.table.column_header_cell("Phone"),
+                    rx.table.column_header_cell("Message"),
+                    rx.table.column_header_cell("Date Submitted"),
+                    rx.table.column_header_cell("Status"),
+                )),
+                rx.table.body(
+                    rx.foreach(
+                        State.contact_priority_rows,
+                        lambda row: rx.table.row(
+                            rx.table.cell(row["name"]),
+                            rx.table.cell(row["email"]),
+                            rx.table.cell(row["phone"]),
+                            rx.table.cell(row["message"]),
+                            rx.table.cell(row["date_submitted"]),
+                            rx.table.cell(row["status"]),
+                            background="rgba(250, 204, 21, 0.08)",
+                        ),
+                    )
+                ),
+                variant="surface", size="2", width="100%",
+            )
         ),
-        rx.button(
-            "Refresh list",
-            on_click=State.sync_db_views,
-            variant="outline",
-            color_scheme="cyan",
-            style={"letter_spacing": "0.06em", "margin_bottom": "12px"},
-        ),
-        neo_table_shell(contact_submission_table()),
         width="100%",
     )
 
     tracking_panel = glass_card(
         rx.text("Tracking", weight="bold", color="white", size="4"),
-        rx.text(
-            "Court-ready lineage: correlation IDs across leads + agreements — use with Payments & Deal Vault.",
-            color="#94a3b8",
-            size="2",
+        rx.text("Performance analytics for niche, geography, messaging, and timing.", color="#94a3b8", size="2"),
+        rx.text("Niche conversion performance", color="#cbd5e1", size="2"),
+        neo_table_shell(
+            rx.table.root(
+                rx.table.header(rx.table.row(rx.table.column_header_cell("Niche"), rx.table.column_header_cell("Conversion"), rx.table.column_header_cell("Lead Count"))),
+                rx.table.body(rx.foreach(State.tracking_niche_rows, lambda r: rx.table.row(rx.table.cell(r["niche"]), rx.table.cell(r["conversion"]), rx.table.cell(r["lead_count"])))),
+                variant="surface", size="2", width="100%",
+            )
         ),
-        neo_table_shell(raw_db_table()),
-        width="100%",
-    )
-
-    payments_panel = glass_card(
-        rx.text("Payments", weight="bold", color="white", size="4"),
-        rx.text(
-            "Stripe Checkout sessions, receipts, and paid states — mapped by correlation_id / client_reference_id.",
-            color="#94a3b8",
-            size="2",
+        rx.text("Cities with most leads", color="#cbd5e1", size="2"),
+        neo_table_shell(
+            rx.table.root(
+                rx.table.header(rx.table.row(rx.table.column_header_cell("City"), rx.table.column_header_cell("Leads"))),
+                rx.table.body(rx.foreach(State.tracking_city_rows, lambda r: rx.table.row(rx.table.cell(r["city"]), rx.table.cell(r["leads"])))),
+                variant="surface", size="2", width="100%",
+            )
         ),
-        rx.input(
-            placeholder="Filter agreements by client name…",
-            value=State.agreement_search_query,
-            on_change=State.set_agreement_search_query,
-            width="100%",
+        rx.text("Best email subject lines (reply count)", color="#cbd5e1", size="2"),
+        neo_table_shell(
+            rx.table.root(
+                rx.table.header(rx.table.row(rx.table.column_header_cell("Subject"), rx.table.column_header_cell("Replies"))),
+                rx.table.body(rx.foreach(State.tracking_subject_rows, lambda r: rx.table.row(rx.table.cell(r["subject"]), rx.table.cell(r["replies"])))),
+                variant="surface", size="2", width="100%",
+            )
         ),
-        neo_table_shell(agreement_table()),
-        width="100%",
-    )
-
-    behavior_ai_panel = glass_card(
-        rx.text("Behavior AI", weight="bold", color="white", size="4"),
-        rx.text(
-            "Conversation / scoring layer (Vapi & downstream models). Surface area for inference + transcripts.",
-            color="#94a3b8",
-            size="2",
+        rx.text("Best day/time for replies", color="#cbd5e1", size="2"),
+        neo_table_shell(
+            rx.table.root(
+                rx.table.header(rx.table.row(rx.table.column_header_cell("Window"), rx.table.column_header_cell("Replies"))),
+                rx.table.body(rx.foreach(State.tracking_reply_time_rows, lambda r: rx.table.row(rx.table.cell(r["window"]), rx.table.cell(r["replies"])))),
+                variant="surface", size="2", width="100%",
+            )
         ),
-        neo_stat_tile(
-            "Signals · Call volume",
-            rx.text(State.total_calls_made, size="7", color="#d8b4fe", weight="bold"),
-        ),
-        rx.button(
-            "Refresh signals",
-            on_click=State.refresh_signals,
-            color_scheme="violet",
-            variant="outline",
-        ),
-        rx.callout(
-            "Extend here for transcripts, embeddings, or disposition scoring.",
-            icon="zap",
-            color_scheme="purple",
-            width="100%",
+        rx.text("Cost per lead over time", color="#cbd5e1", size="2"),
+        neo_table_shell(
+            rx.table.root(
+                rx.table.header(rx.table.row(rx.table.column_header_cell("Period"), rx.table.column_header_cell("Cost / Lead"))),
+                rx.table.body(rx.foreach(State.tracking_cpl_rows, lambda r: rx.table.row(rx.table.cell(r["period"]), rx.table.cell(r["cost_per_lead"])))),
+                variant="surface", size="2", width="100%",
+            )
         ),
         width="100%",
     )
 
-    deal_vault_panel = glass_card(
-        rx.text("Deal Vault", weight="bold", color="white", size="4"),
-        rx.text(
-            "Legal-grade agreements — PandaDoc lifecycle, signatures, PDF artifacts.",
-            color="#94a3b8",
-            size="2",
-        ),
-        rx.input(
-            placeholder="Search by client name…",
-            value=State.agreement_search_query,
-            on_change=State.set_agreement_search_query,
-            width="100%",
-        ),
-        neo_table_shell(agreement_table()),
-        width="100%",
-    )
-
-    dm_generator_panel = placeholder_module(
-        "DM Generator",
-        "Compose outbound DM variants from lead context — templates, tone rails, and approval queues.",
-    )
-
-    cold_caller_panel = glass_card(
-        rx.text("Cold Caller", weight="bold", color="white", size="4"),
-        rx.text(
-            "Voice agent ingress posts here via webhook — pair Vapi assistants with Lead Engine correlation IDs.",
-            color="#94a3b8",
-            size="2",
-        ),
-        rx.text("Vapi webhook target:", weight="bold", color="#e2e8f0", size="2"),
-        rx.text(State.webhook_vapi_url, color="#7dd3fc", size="2", style={"word_break": "break-all"}),
-        rx.callout(
-            "Dialer disposition → Interested triggers PandaDoc path in server automation.",
-            icon="phone",
-            color_scheme="cyan",
-            width="100%",
-        ),
-        width="100%",
-    )
-
-    automation_panel = glass_card(
-        rx.text("Automation", weight="bold", color="white", size="4"),
-        rx.text(
-            "One-click backend control tower. Start/stop automation, run safe simulation cycles, and send reports.",
-            color="#94a3b8",
-            size="2",
-        ),
+    system_health_panel = glass_card(
         rx.hstack(
-            neo_stat_tile(
-                "Backend health",
-                rx.cond(
-                    State.backend_health_ok,
-                    rx.text("ONLINE", size="5", color="#34d399", weight="bold"),
-                    rx.text("OFFLINE", size="5", color="#f87171", weight="bold"),
-                ),
-            ),
-            neo_stat_tile(
-                "Automation",
-                rx.cond(
-                    State.automation_running,
-                    rx.text("RUNNING", size="5", color="#22d3ee", weight="bold"),
-                    rx.text("STOPPED", size="5", color="#94a3b8", weight="bold"),
-                ),
-            ),
-            neo_stat_tile(
-                "Mode",
-                rx.cond(
-                    State.simulate_mode,
-                    rx.text("SIMULATION", size="5", color="#facc15", weight="bold"),
-                    rx.text("LIVE", size="5", color="#fb7185", weight="bold"),
-                ),
-            ),
-            spacing="3",
-            width="100%",
-            flex_wrap="wrap",
-        ),
-        rx.hstack(
-            rx.button(
-                rx.cond(State.automation_running, "Stop automation", "Start automation"),
-                on_click=State.toggle_automation,
-                color_scheme=rx.cond(State.automation_running, "red", "green"),
-                variant="solid",
-            ),
-            rx.button(
-                "Run safe simulation cycle",
-                on_click=State.run_simulation_cycle,
-                color_scheme="cyan",
-                variant="outline",
-            ),
-            rx.button(
-                "Send daily report now",
-                on_click=State.send_daily_report_now,
-                color_scheme="purple",
-                variant="outline",
-            ),
-            rx.button(
-                "Refresh backend snapshot",
-                on_click=State.refresh_backend_snapshot,
-                color_scheme="gray",
-                variant="soft",
-            ),
-            spacing="3",
-            flex_wrap="wrap",
-        ),
-        rx.callout(
-            rx.vstack(
-                rx.text("Latest report", weight="bold"),
-                rx.text(State.latest_report_subject, color="#cbd5e1", size="2"),
-                rx.text(
-                    rx.cond(
-                        State.latest_report_status != "",
-                        State.latest_report_status,
-                        "No report yet",
-                    ),
-                    color="#94a3b8",
-                    size="2",
-                ),
-                spacing="1",
-                align_items="start",
-            ),
-            icon="activity",
-            color_scheme="blue",
+            rx.text("System Health", weight="bold", color="white", size="4"),
+            rx.spacer(),
+            rx.button("Run Health Check", on_click=State.run_health_check, color_scheme="green", variant="solid"),
             width="100%",
         ),
-        rx.callout(
-            rx.vstack(
-                rx.text("Stripe Webhook Handshake", weight="bold"),
-                rx.cond(
-                    State.stripe_webhook_ready,
-                    rx.text("READY", color="#86efac", size="2"),
-                    rx.text("NOT READY", color="#fca5a5", size="2"),
-                ),
-                rx.cond(
-                    State.stripe_last_event_type != "",
-                    rx.text(
-                        "Last event: ",
-                        State.stripe_last_event_type,
-                        color="#cbd5e1",
-                        size="2",
-                    ),
-                    rx.text("Last event: none yet", color="#cbd5e1", size="2"),
-                ),
-                rx.text(State.stripe_last_event_at, color="#94a3b8", size="1"),
-                spacing="1",
-                align_items="start",
-            ),
-            icon="credit_card",
-            color_scheme="green",
-            width="100%",
-        ),
-        rx.text(
-            "Run both services: `python server.py` and `python main.py`",
-            color="#64748b",
-            size="2",
-            font_family="ui-monospace, monospace",
-        ),
-        rx.text("Webhook URLs (WEBHOOK_BASE_URL):", weight="bold", color="#e2e8f0", size="2"),
-        rx.text(State.webhook_health_url, color="#7dd3fc", size="2", style={"word_break": "break-all"}),
-        rx.text(State.webhook_stripe_url, color="#7dd3fc", size="2", style={"word_break": "break-all"}),
-        rx.text(State.webhook_vapi_url, color="#7dd3fc", size="2", style={"word_break": "break-all"}),
-        rx.text(State.webhook_pandadoc_url, color="#7dd3fc", size="2", style={"word_break": "break-all"}),
-        rx.text(
-            "Set WEBHOOK_BASE_URL in .env for public tunnels or Railway.",
-            color="#64748b",
-            size="2",
-        ),
-        width="100%",
-    )
-
-    live_monitor_panel = glass_card(
-        rx.text("Live Monitor", weight="bold", color="white", size="4"),
-        rx.text(
-            "Operational feed + quick vitals — pair with Automation when webhooks spike or fail.",
-            color="#94a3b8",
-            size="2",
-        ),
-        rx.cond(
-            State.system_message != "",
-            rx.callout(State.system_message, icon="activity", color_scheme="blue", width="100%"),
-            rx.fragment(),
-        ),
-        rx.hstack(
-            neo_stat_tile(
-                "Calls",
-                rx.text(State.total_calls_made, size="6", color="#a5f3fc", weight="bold"),
-            ),
-            neo_stat_tile(
-                "Queued",
-                rx.text(State.queued_leads_count, size="6", color="#fde68a", weight="bold"),
-            ),
-            neo_stat_tile(
-                "Yield",
-                rx.hstack(
-                    rx.text("$", size="6", color="#67e8f9", weight="bold"),
-                    rx.text(State.revenue_total, size="6", color="#67e8f9", weight="bold"),
-                    spacing="1",
-                    align_items="center",
-                ),
-            ),
-            spacing="3",
-            width="100%",
-            flex_wrap="wrap",
-        ),
-        rx.button(
-            "Refresh monitor",
-            on_click=State.refresh_signals,
-            color_scheme="cyan",
-            variant="soft",
-        ),
-        width="100%",
-    )
-
-    outreach_config_panel = glass_card(
-        rx.text("Outreach Config", weight="bold", color="white", size="4"),
-        rx.text(
-            "Instantly credentials and campaign routing — sourced from environment (never commit secrets).",
-            color="#94a3b8",
-            size="2",
-        ),
-        rx.callout(rx.text(State.outreach_env_summary), icon="settings", color_scheme="gray", width="100%"),
-        rx.text(
-            "Set INSTANTLY_API_KEY and INSTANTLY_CAMPAIGN_ID in .env, then redeploy / restart Reflex.",
-            color="#64748b",
-            size="2",
-        ),
-        width="100%",
-    )
-
-    system_logs_panel = glass_card(
-        rx.text("System Logs", weight="bold", color="white", size="4"),
-        rx.text(
-            "Operational trace from try/except capture points across automation, webhooks, and integrations.",
-            color="#94a3b8",
-            size="2",
-        ),
-        rx.button(
-            "Refresh logs",
-            on_click=State.refresh_backend_snapshot,
-            color_scheme="gray",
-            variant="soft",
-        ),
-        rx.vstack(
-            rx.cond(
-                State.system_logs_rows != [],
-                rx.foreach(
-                    State.system_logs_rows,
-                    lambda row: rx.box(
-                        rx.hstack(
-                            rx.badge(row["level"], color_scheme="red", variant="soft"),
-                            rx.badge(row["source"], color_scheme="cyan", variant="soft"),
-                            rx.text(row["action"], color="#dbeafe", size="2"),
-                            rx.text(row["at"], color="#94a3b8", size="1"),
-                            spacing="2",
-                            align_items="center",
-                            flex_wrap="wrap",
+        rx.text("End-to-end operational readiness across core infrastructure and integrations.", color="#94a3b8", size="2"),
+        rx.cond(State.system_message != "", rx.callout(State.system_message, icon="info", color_scheme="blue", width="100%"), rx.fragment()),
+        neo_table_shell(
+            rx.table.root(
+                rx.table.header(rx.table.row(
+                    rx.table.column_header_cell("Component"),
+                    rx.table.column_header_cell("Status"),
+                    rx.table.column_header_cell("Detail"),
+                )),
+                rx.table.body(
+                    rx.foreach(
+                        State.system_health_rows,
+                        lambda r: rx.table.row(
+                            rx.table.cell(r["component"]),
+                            rx.table.cell(rx.cond(r["status"] == "green", rx.badge("Healthy", color_scheme="green"), rx.badge("Issue", color_scheme="red"))),
+                            rx.table.cell(r["detail"]),
                         ),
-                        rx.text(row["detail"], color="#fca5a5", size="2"),
-                        rx.cond(
-                            row["correlation_id"] != "",
-                            rx.text("CID: ", row["correlation_id"], color="#93c5fd", size="1"),
-                            rx.fragment(),
-                        ),
-                        padding="0.55rem",
-                        border_radius="10px",
-                        border="1px solid rgba(248, 113, 113, 0.2)",
-                        background="rgba(0,0,0,0.2)",
-                        width="100%",
-                    ),
+                    )
                 ),
-                rx.text("No log records yet.", color="#86efac", size="2"),
-            ),
-            spacing="2",
-            width="100%",
-            align_items="stretch",
+                variant="surface", size="2", width="100%",
+            )
+        ),
+        rx.hstack(
+            rx.text("Daily Email Reports (8:00 AM)", color="#cbd5e1", size="2"),
+            rx.switch(checked=State.daily_reports_enabled, on_change=State.toggle_daily_reports_enabled, color_scheme="cyan"),
+            spacing="3",
         ),
         width="100%",
     )
@@ -664,17 +420,12 @@ def command_center_page() -> rx.Component:
         "dashboard": dashboard_panel,
         "lead_engine": lead_engine_panel,
         "outreach": outreach_panel,
+        "cold_caller": cold_caller_panel,
+        "deal_vault": deal_vault_panel,
+        "payments": payments_panel,
         "contact_submissions": contact_submissions_panel,
         "tracking": tracking_panel,
-        "payments": payments_panel,
-        "behavior_ai": behavior_ai_panel,
-        "deal_vault": deal_vault_panel,
-        "dm_generator": dm_generator_panel,
-        "cold_caller": cold_caller_panel,
-        "automation": automation_panel,
-        "live_monitor": live_monitor_panel,
-        "outreach_config": outreach_config_panel,
-        "system_logs": system_logs_panel,
+        "system_health": system_health_panel,
     }
 
     tab_content = rx.match(
@@ -682,17 +433,12 @@ def command_center_page() -> rx.Component:
         ("dashboard", panels["dashboard"]),
         ("lead_engine", panels["lead_engine"]),
         ("outreach", panels["outreach"]),
+        ("cold_caller", panels["cold_caller"]),
+        ("deal_vault", panels["deal_vault"]),
+        ("payments", panels["payments"]),
         ("contact_submissions", panels["contact_submissions"]),
         ("tracking", panels["tracking"]),
-        ("payments", panels["payments"]),
-        ("behavior_ai", panels["behavior_ai"]),
-        ("deal_vault", panels["deal_vault"]),
-        ("dm_generator", panels["dm_generator"]),
-        ("cold_caller", panels["cold_caller"]),
-        ("automation", panels["automation"]),
-        ("live_monitor", panels["live_monitor"]),
-        ("outreach_config", panels["outreach_config"]),
-        ("system_logs", panels["system_logs"]),
+        ("system_health", panels["system_health"]),
         panels["dashboard"],
     )
 
@@ -700,17 +446,12 @@ def command_center_page() -> rx.Component:
         ("Dashboard", "dashboard", State.cc_dashboard),
         ("Lead Engine", "lead_engine", State.cc_lead_engine),
         ("Outreach", "outreach", State.cc_outreach),
+        ("Cold Caller", "cold_caller", State.cc_cold_caller),
+        ("Deal Vault", "deal_vault", State.cc_deal_vault),
+        ("Payments", "payments", State.cc_payments),
         ("Contact Submissions", "contact_submissions", State.cc_contact_submissions),
         ("Tracking", "tracking", State.cc_tracking),
-        ("Payments", "payments", State.cc_payments),
-        ("Behavior AI", "behavior_ai", State.cc_behavior_ai),
-        ("Deal Vault", "deal_vault", State.cc_deal_vault),
-        ("DM Generator", "dm_generator", State.cc_dm_generator),
-        ("Cold Caller", "cold_caller", State.cc_cold_caller),
-        ("Automation", "automation", State.cc_automation),
-        ("Live Monitor", "live_monitor", State.cc_live_monitor),
-        ("Outreach Config", "outreach_config", State.cc_outreach_config),
-        ("System Logs", "system_logs", State.cc_system_logs),
+        ("System Health", "system_health", State.cc_system_health),
     ]
 
     return rx.box(
@@ -733,7 +474,7 @@ def command_center_page() -> rx.Component:
                         style={"letter_spacing": "0.28em"},
                     ),
                     rx.heading(
-                        "Unified Operations Dashboard",
+                        "AutoYield Command Center",
                         size="8",
                         style={
                             "background": "linear-gradient(92deg, #f0f9ff 0%, #a5f3fc 42%, #e9d5ff 100%)",
@@ -760,8 +501,7 @@ def command_center_page() -> rx.Component:
                 spacing="4",
             ),
             rx.text(
-                "Single dashboard shell — thirteen modules as horizontal tabs (left → right). "
-                "Each tab owns its viewport; data stays connected through one Reflex State + shared DB.",
+                "Executive command surface for the full growth machine: scrape → outreach → calls → deals → payments.",
                 color="#93c5fd",
                 size="2",
                 style={"max_width": "54rem", "line_height": "1.65"},

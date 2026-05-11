@@ -18,7 +18,7 @@ class ScrapedLead:
     email: str | None = None
     owner_name: str | None = None
 
-def fetch_hvac_leads(niche: str = "HVAC", location: str = "United States", limit: int = 20) -> list[ScrapedLead]:
+def fetch_hvac_leads(niche: str = "HVAC", location: str = "United States", limit: int = 100) -> list[ScrapedLead]:
     raw = fetch_business_leads(niche=niche, location=location, limit=limit)
     out: list[ScrapedLead] = []
     for item in raw:
@@ -69,7 +69,7 @@ def upsert_scraped_leads(leads: list[ScrapedLead]) -> tuple[int, int]:
     return inserted, skipped
 
 
-def run(niche: str = "HVAC", location: str = "United States", limit: int = 20) -> None:
+def run(niche: str = "HVAC", location: str = "United States", limit: int = 100) -> None:
     init_db()
     scraped = fetch_hvac_leads(niche=niche, location=location, limit=limit)
     inserted, skipped = upsert_scraped_leads(scraped)
@@ -80,4 +80,4 @@ def run(niche: str = "HVAC", location: str = "United States", limit: int = 20) -
 
 
 if __name__ == "__main__":
-    run(niche="HVAC", location="United States", limit=20)
+    run(niche="HVAC", location="United States", limit=100)

@@ -304,7 +304,7 @@ def _apify_run_input(niche: str, location: str, limit: int, postal_codes: list[s
 def fetch_business_leads(
     niche: str = "HVAC",
     location: str = "United States",
-    limit: int = 20,
+    limit: int = 100,
     postal_codes: list[str] | None = None,
 ) -> list[ScrapedLead]:
     """
@@ -499,7 +499,7 @@ if __name__ == "__main__":
     niche = sys.argv[1].strip() or "HVAC"
     city = sys.argv[2].strip() or "United States"
     try:
-        limit = int(sys.argv[3]) if len(sys.argv) >= 4 else 20
+        limit = int(sys.argv[3]) if len(sys.argv) >= 4 else 100
     except ValueError:
         print("LIMIT must be an integer.")
         raise SystemExit(1)

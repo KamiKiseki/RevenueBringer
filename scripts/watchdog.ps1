@@ -49,19 +49,24 @@ function Run-ContactWriteTest([string]$PythonExe, [string]$Root) {
     if ($SkipWriteTest) { return $true }
     $cmd = @"
 import requests
+from datetime import datetime, timezone
 from models import get_session, ContactSubmission
 from sqlalchemy import desc
+marker = datetime.now(timezone.utc).strftime('%Y%m%d%H%M%S%f')
+name = f'Watchdog Test {marker}'
+email = f'watchdog.test+{marker}@autoyieldsystems.com'
+message = f'Watchdog smoke test submission {marker}.'
 r = requests.post('http://127.0.0.1:8080/contact', data={
-  'name':'Watchdog Test',
-  'email':'watchdog.test+local@autoyieldsystems.com',
+  'name': name,
+  'email': email,
   'company':'AutoYield QA',
-  'message':'Watchdog smoke test submission.'
+  'message': message
 }, timeout=15, allow_redirects=False)
 ok_redirect = (r.status_code == 302 and '/contact?sent=1' in (r.headers.get('Location') or ''))
 s = get_session()
-row = s.query(ContactSubmission).order_by(desc(ContactSubmission.id)).first()
+row = s.query(ContactSubmission).filter(ContactSubmission.email == email).order_by(desc(ContactSubmission.id)).first()
 s.close()
-ok_row = bool(row and row.name == 'Watchdog Test' and row.source == 'public_site')
+ok_row = bool(row and row.name == name and row.source == 'public_site')
 print('ok' if (ok_redirect and ok_row) else 'fail')
 "@
     try {

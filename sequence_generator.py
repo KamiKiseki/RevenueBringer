@@ -25,7 +25,69 @@ load_dotenv()
 
 CHECKOUT_URL = "https://autoyieldsystems.com/checkout"
 OFFER_LINE = "14-day trial for $300, then $500/month if you want to keep going"
+SIGNATURE_LINE = "Stevie from AutoYield Systems"
 MODEL = "gpt-4o"
+
+# Tokens not used alone for "Hi …" when deriving from business name (after LLC/Inc/Co stripped).
+_SKIP_GREETING_TOKEN = frozenset(
+    {
+        "llc",
+        "l.l.c.",
+        "inc",
+        "incorporated",
+        "corp",
+        "corporation",
+        "co",
+        "company",
+        "pllc",
+        "pc",
+        "p.c.",
+        "llp",
+        "l.p.",
+        "ltd",
+        "limited",
+        "the",
+        "a",
+        "an",
+        "&",
+        "and",
+        "of",
+        "for",
+        "at",
+        # Often first word of business title, not a person's name
+        "luxury",
+        "premier",
+        "ambient",
+        "texas",
+        "two",
+        "metal",
+        "storm",
+        "bison",
+        "dominion",
+        "caliber",
+        "office",
+        "team",
+        "services",
+        "roofing",
+        "dental",
+        "hvac",
+        "law",
+        "real",
+        "estate",
+        "auto",
+        "body",
+        "med",
+        "spa",
+        "gym",
+        "insurance",
+        "san",
+        "antonio",
+    }
+)
+
+_LEGAL_SUFFIX_END = re.compile(
+    r"(?i)[,\s]*\b(?:llc|l\.l\.c\.|inc\.?|incorporated|corp\.?|corporation|co\.?|company|pllc|p\.c\.|pc|llp|l\.p\.|ltd\.?|limited)\b\.?\s*$"
+)
 
 # Niche -> one concrete local-business pain (for personalization).
 NICHE_PAIN: dict[str, str] = {
@@ -66,11 +128,76 @@ def _pain_for(niche: str) -> str:
     return NICHE_PAIN["default"]
 
 
+def _normalize_greeting_token(raw: str) -> str:
+    t = raw.strip().strip(',.;:"')
+    if not t:
+        return ""
+    return t
+
+
+def _owner_first_name(owner_name: str) -> str | None:
+    o = (owner_name or "").strip()
+    if not o:
+        return None
+    tokens = o.split()
+    honorifics = {"dr", "mr", "mrs", "ms", "miss", "prof"}
+    first = tokens[0].lower().rstrip(".")
+    start = 1 if first in honorifics and len(tokens) > 1 else 0
+    pick = _normalize_greeting_token(tokens[start])
+    return pick if pick else None
+
+
+def _tokens_from_business_name(business_name: str) -> list[str]:
+    s = (business_name or "").strip()
+    if not s:
+        return []
+    # Prefer the segment after "//" (often the trade / shorter brand name).
+    if "//" in s:
+        parts = [p.strip() for p in s.split("//") if p.strip()]
+        if parts:
+            s = parts[-1]
+    while True:
+        ns = _LEGAL_SUFFIX_END.sub("", s).strip().rstrip(",")
+        if ns == s:
+            break
+        s = ns
+    # Split on whitespace and common separators
+    bits = re.split(r"[\s|/,\-–—]+", s)
+    out: list[str] = []
+    for b in bits:
+        t = _normalize_greeting_token(b)
+        if t:
+            out.append(t)
+    return out
+
+
 def _first_name(lead: Lead) -> str:
-    if (lead.owner_name or "").strip():
-        return (lead.owner_name or "").strip().split()[0]
-    parts = (lead.business_name or "there").split()
-    return parts[0] if parts else "there"
+    owner = _owner_first_name(lead.owner_name or "")
+    if owner:
+        return owner
+
+    tokens = _tokens_from_business_name(lead.business_name or "")
+    for t in tokens:
+        key = re.sub(r"[^\w]", "", t).lower()
+        if len(key) < 2:
+            continue
+        if key in _SKIP_GREETING_TOKEN:
+            continue
+        return t
+    return "there"
+
+
+def _apply_signature_to_sequence(data: dict) -> dict:
+    """Replace placeholder signatures; normalize to Stevie / AutoYield."""
+    out = dict(data)
+    for k in (
+        "email_1_body",
+        "email_2_body",
+        "email_3_body",
+    ):
+        if k in out and isinstance(out[k], str):
+            out[k] = out[k].replace("[Your Name]", SIGNATURE_LINE)
+    return out
 
 
 def _city(lead: Lead) -> str:
@@ -127,6 +254,7 @@ def _generate_sequence(
         f"Every email must mention the offer once in natural language: {OFFER_LINE}. "
         f"Include the checkout link exactly once across the whole 3-email sequence: {CHECKOUT_URL} "
         "(use it in the most natural email, usually email 2 or 3). "
+        f"Sign every email with this exact line only—never placeholders or alternatives: {SIGNATURE_LINE}. "
         "Output strictly valid JSON with keys: "
         "email_1_subject, email_1_body, email_2_subject, email_2_body, email_3_subject, email_3_body. "
         "Email 1 = day 1 cold intro, short, ends with one simple question, references niche pain. "
@@ -134,9 +262,15 @@ def _generate_sequence(
         "Email 3 = day 7 final, low pressure, easy out, last nudge for trial. "
         "Do not use ALL CAPS or multiple exclamation marks."
     )
+    greet_hint = (
+        'Use exactly "Hi there" as the opening salutation.'
+        if first_name.strip().lower() == "there"
+        else f'Open with a natural "Hi {first_name}" salutation (use that exact first name token).'
+    )
     user = (
         f"Business name: {business_name}\n"
-        f"Owner/first name to use in greeting: {first_name}\n"
+        f"Owner/first name for greeting line only: {first_name}\n"
+        f"{greet_hint}\n"
         f"Niche: {niche}\n"
         f"City: {city}\n"
         f"Pain point to weave in: {pain}\n"
@@ -267,6 +401,7 @@ def main() -> int:
                 pain=pain,
                 first_name=fn,
             )
+            data = _apply_signature_to_sequence(data)
             with get_session() as session:
                 _save_sequence(session, lead.id, data)
                 session.commit()

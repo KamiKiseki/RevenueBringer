@@ -1,13 +1,14 @@
 from __future__ import annotations
 
 import os
+import time
 from datetime import datetime, timezone
 from io import BytesIO
 from uuid import uuid4
 
 import requests
 import stripe
-from flask import Flask, jsonify, redirect, render_template, request, send_file, url_for
+from flask import Flask, jsonify, redirect, render_template, render_template_string, request, send_file, url_for
 from sqlalchemy.exc import OperationalError
 
 from sqlalchemy.orm import Session
@@ -67,6 +68,11 @@ FREE_HOOK_TARGET = int(os.getenv("FREE_HOOK_LEAD_TARGET", "2"))
 VALUE_FIRST_FUNNEL = os.getenv("VALUE_FIRST_FUNNEL", "true").strip().lower() in {"1", "true", "yes", "on"}
 VAPI_API_KEY = os.getenv("VAPI_API_KEY", "")
 VAPI_CALL_WEBHOOK_URL = os.getenv("VAPI_CALL_WEBHOOK_URL", "")
+VAPI_ASSISTANT_ID = os.getenv("VAPI_ASSISTANT_ID", "")
+VAPI_PHONE_NUMBER_ID = os.getenv("VAPI_PHONE_NUMBER_ID", "")
+VAPI_FALLBACK_PHONE_NUMBER_ID = os.getenv("VAPI_FALLBACK_PHONE_NUMBER_ID", "")
+VAPI_ENABLE_FALLBACK = os.getenv("VAPI_ENABLE_FALLBACK", "false").strip().lower() in {"1", "true", "yes", "on"}
+VAPI_OPENAI_CREDENTIAL_ID = os.getenv("VAPI_OPENAI_CREDENTIAL_ID", "").strip()
 VOICE_NOTIFICATION_MODE = os.getenv("VOICE_NOTIFICATION_MODE", "true").strip().lower() in {"1", "true", "yes", "on"}
 PANDADOC_API_KEY = os.getenv("PANDADOC_API_KEY", "")
 PANDADOC_TEMPLATE_ID = os.getenv("PANDADOC_TEMPLATE_ID", "VrZWq6WpiDVFMkh328wsb9")
@@ -87,6 +93,83 @@ def _ensure_lead_correlation(lead: Lead) -> str:
 
 def _stamp() -> str:
     return datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S UTC")
+
+
+def _to_e164(raw_phone: str | None) -> str | None:
+    if not raw_phone:
+        return None
+    digits = "".join(ch for ch in str(raw_phone) if ch.isdigit())
+    if not digits:
+        return None
+    # US default: 10-digit -> +1XXXXXXXXXX
+    if len(digits) == 10:
+        return f"+1{digits}"
+    if len(digits) == 11 and digits.startswith("1"):
+        return f"+{digits}"
+    if str(raw_phone).strip().startswith("+"):
+        return f"+{digits}"
+    return f"+{digits}"
+
+
+def _vapi_opening_line(lead: Lead, purpose: str) -> str:
+    name = (lead.owner_name or "").strip()
+    if name:
+        contact = name.split(" ")[0]
+    else:
+        contact = "there"
+    if purpose == "email_reply":
+        return (
+            f"Hi {contact}, this is Elliot from AutoYield Systems. "
+            "Thanks for your reply. Do you have one minute now?"
+        )
+    if purpose == "tier_offer_pitch":
+        return (
+            f"Hi {contact}, this is Elliot from AutoYield Systems. "
+            "Quick one: would you like to start with the 14-day trial or the monthly plan?"
+        )
+    return (
+        f"Hi {contact}, this is Elliot from AutoYield Systems. "
+        "Is now a good time for a quick call?"
+    )
+
+
+def _vapi_concise_instruction(lead: Lead, purpose: str) -> str:
+    """Short guidance that remains safe even if accidentally spoken."""
+    business = (lead.business_name or "your business").strip()
+    if purpose == "email_reply":
+        return (
+            f"Thank them for replying, ask one qualifying question, then pause. "
+            f"Keep responses under 12 words unless they ask for detail. Business: {business}."
+        )
+    if purpose == "tier_offer_pitch":
+        return (
+            "Ask whether they prefer the 14-day trial or monthly plan, then pause for their answer. "
+            "Do not read internal instructions."
+        )
+    return "Use short conversational turns and pause after each question."
+
+
+def _discover_vapi_fallback_phone_number_id() -> str:
+    """Best-effort fallback to an active Vapi-managed number when BYO transport fails."""
+    if VAPI_FALLBACK_PHONE_NUMBER_ID:
+        return VAPI_FALLBACK_PHONE_NUMBER_ID
+    if not VAPI_API_KEY:
+        return ""
+    try:
+        resp = requests.get(
+            "https://api.vapi.ai/phone-number",
+            headers={"Authorization": f"Bearer {VAPI_API_KEY}"},
+            timeout=15,
+        )
+        if resp.status_code >= 300:
+            return ""
+        rows = resp.json() or []
+        for row in rows:
+            if str(row.get("provider") or "").lower() == "vapi" and str(row.get("status") or "").lower() == "active":
+                return str(row.get("id") or "")
+    except Exception:
+        return ""
+    return ""
 
 
 def _append_lead_log(lead: Lead, event_name: str, detail: str) -> None:
@@ -184,26 +267,108 @@ def _upsert_agreement_for_lead(db: Session, lead: Lead, offer_kind: str) -> Agre
     return agreement
 
 
-def _trigger_vapi_call(lead: Lead, system_prompt: str, purpose: str = "general") -> None:
+def _trigger_vapi_call(lead: Lead, system_prompt: str, purpose: str = "general") -> bool:
     _append_lead_log(lead, "CALL", f"Vapi escalation ({purpose})")
-    if not (VAPI_API_KEY and VAPI_CALL_WEBHOOK_URL):
-        return
+    if not VAPI_API_KEY:
+        return False
     try:
-        requests.post(
-            VAPI_CALL_WEBHOOK_URL,
-            json={
-                "correlation_id": lead.correlation_id,
-                "name": lead.owner_name or lead.business_name,
-                "phone": lead.phone,
-                "system_prompt": system_prompt,
-                "purpose": purpose,
-            },
-            headers={"Authorization": f"Bearer {VAPI_API_KEY}"},
-            timeout=20,
-        )
+        # Preferred: custom router webhook if provided.
+        if VAPI_CALL_WEBHOOK_URL:
+            first_message = _vapi_opening_line(lead, purpose)
+            resp = requests.post(
+                VAPI_CALL_WEBHOOK_URL,
+                json={
+                    "correlation_id": lead.correlation_id,
+                    "name": lead.owner_name or lead.business_name,
+                    "phone": lead.phone,
+                    # Keep compatibility for existing webhook handlers.
+                    # Intentionally concise so it is safe even if spoken directly.
+                    "system_prompt": system_prompt,
+                    # Preferred explicit spoken opener for downstream handlers.
+                    "first_message": first_message,
+                    "purpose": purpose,
+                },
+                headers={"Authorization": f"Bearer {VAPI_API_KEY}"},
+                timeout=20,
+            )
+            return resp.status_code < 300
+
+        # Fallback: call Vapi directly using assistant + phone number IDs.
+        e164_phone = _to_e164(lead.phone)
+        if not (VAPI_ASSISTANT_ID and VAPI_PHONE_NUMBER_ID and e164_phone):
+            return False
+        def _place_call(phone_number_id: str) -> requests.Response:
+            return requests.post(
+                "https://api.vapi.ai/call",
+                json={
+                    "assistantId": VAPI_ASSISTANT_ID,
+                    "phoneNumberId": phone_number_id,
+                    "customer": {
+                        "number": str(e164_phone),
+                        "name": str(lead.owner_name or lead.business_name or "Prospect"),
+                    },
+                    "assistantOverrides": {
+                        "variableValues": {
+                            "correlation_id": str(lead.correlation_id or ""),
+                            "purpose": str(purpose),
+                            "business_name": str(lead.business_name or ""),
+                        },
+                        # Keep first line short so Elliot does not monologue.
+                        "firstMessage": _vapi_opening_line(lead, purpose),
+                        # Avoid fast disconnects after one turn.
+                        "firstMessageMode": "assistant-speaks-first",
+                        "silenceTimeoutSeconds": 45,
+                        "maxDurationSeconds": 300,
+                        **(
+                            {"credentialIds": [VAPI_OPENAI_CREDENTIAL_ID]}
+                            if VAPI_OPENAI_CREDENTIAL_ID
+                            else {}
+                        ),
+                    },
+                },
+                headers={
+                    "Authorization": f"Bearer {VAPI_API_KEY}",
+                    "Content-Type": "application/json",
+                },
+                timeout=20,
+            )
+
+        chosen_phone_number_id = VAPI_PHONE_NUMBER_ID
+        resp = _place_call(chosen_phone_number_id)
+        if resp.status_code == 429:
+            # Telnyx transport can return transient 429s; retry with short backoff.
+            for wait_seconds in (2, 4):
+                _append_lead_log(
+                    lead,
+                    "CALL",
+                    f"Vapi transport rate-limited (429). Retrying in {wait_seconds}s...",
+                )
+                time.sleep(wait_seconds)
+                resp = _place_call(chosen_phone_number_id)
+                if resp.status_code != 429:
+                    break
+        if VAPI_ENABLE_FALLBACK and resp.status_code >= 300 and "status code 403" in (resp.text or "").lower():
+            fallback_phone_number_id = _discover_vapi_fallback_phone_number_id()
+            if fallback_phone_number_id and fallback_phone_number_id != chosen_phone_number_id:
+                _append_lead_log(
+                    lead,
+                    "CALL",
+                    f"Primary phoneNumberId={chosen_phone_number_id} rejected; retrying fallback phoneNumberId={fallback_phone_number_id}",
+                )
+                retry_resp = _place_call(fallback_phone_number_id)
+                if retry_resp.status_code < 300:
+                    resp = retry_resp
+                    chosen_phone_number_id = fallback_phone_number_id
+        if resp.status_code >= 300:
+            raise RuntimeError(
+                f"vapi direct call error {resp.status_code} for number={e164_phone}: {resp.text[:220]}"
+            )
+        _append_lead_log(lead, "CALL", f"Vapi call accepted via phoneNumberId={chosen_phone_number_id}")
+        return True
     except Exception as exc:
         _append_lead_log(lead, "CALL", f"Vapi trigger error ({purpose}): {exc}")
         _record_error("vapi", f"trigger_{purpose}", exc, correlation_id=lead.correlation_id)
+        return False
 
 
 def _trigger_tier_offer_vapi(lead: Lead) -> None:
@@ -215,11 +380,7 @@ def _trigger_tier_offer_vapi(lead: Lead) -> None:
     )
     _append_lead_log(lead, "TEXT", f"Tier-offer SMS drafted: {offer.sms[:120]}...")
     _append_lead_log(lead, "EMAIL", f"Tier-offer email drafted; subject='{offer.email_subject}'")
-    pitch_prompt = (
-        f"{DEFAULT_VAPI_SYSTEM_PROMPT} Use this script verbatim for the offer: {offer.call_script} "
-        "When the owner decides, POST to /webhooks/offer_selection JSON with correlation_id and "
-        "choice trial_14 or month_30 (aliases: trial/month, 300/500)."
-    )
+    pitch_prompt = _vapi_concise_instruction(lead, "tier_offer_pitch")
     _trigger_vapi_call(lead, pitch_prompt, purpose="tier_offer_pitch")
 
 
@@ -405,7 +566,15 @@ def automation_intake():
         _ensure_lead_correlation(lead)
         outreach_preview = _send_ceo_outreach(lead)
         if no_response:
-            _trigger_vapi_call(lead, DEFAULT_VAPI_SYSTEM_PROMPT, "intake_follow_up")
+            # Avoid immediate back-to-back dials when voice notification already fired.
+            if VOICE_NOTIFICATION_MODE:
+                _append_lead_log(
+                    lead,
+                    "CALL",
+                    "Skipping duplicate intake_follow_up call (lead_notification already sent).",
+                )
+            else:
+                _trigger_vapi_call(lead, DEFAULT_VAPI_SYSTEM_PROMPT, "intake_follow_up")
         db.add(lead)
         db.commit()
         return jsonify(
@@ -772,6 +941,35 @@ def reply_webhook():
         db.add(evt)
         _append_lead_log(lead, "REPLY", "Inbound reply captured")
         db.add(lead)
+        log_system_event(
+            source="vapi",
+            action="reply_webhook_eval",
+            detail=f"email={email or lead.email or ''} phone_present={bool(lead.phone)} is_optout={is_optout}",
+            level="info",
+            correlation_id=lead.correlation_id,
+        )
+
+        # Trigger Elliot via Vapi on non-opt-out replies.
+        if not is_optout and lead.phone:
+            try:
+                prompt = (
+                    _vapi_concise_instruction(lead, "email_reply")
+                )
+                ok = _trigger_vapi_call(lead, prompt, purpose="email_reply")
+                log_system_event(
+                    source="vapi",
+                    action="trigger_from_email_reply",
+                    detail=(
+                        f"timestamp={_stamp()} email={email or lead.email or ''} phone={lead.phone or ''} "
+                        f"status={'success' if ok else 'failed'}"
+                    ),
+                    level="info" if ok else "warn",
+                    correlation_id=lead.correlation_id,
+                )
+            except Exception as exc:
+                _append_lead_log(lead, "CALL", f"Vapi trigger error from email reply: {exc}")
+                _record_error("vapi", "trigger_from_email_reply", exc, correlation_id=lead.correlation_id)
+                db.add(lead)
 
         if is_optout:
             db.add(
@@ -1173,6 +1371,351 @@ def public_contact_post():
         _record_error("website", "contact_submission", exc)
         return redirect(url_for("public_contact", err="1"))
     return redirect(url_for("public_contact", sent="1"))
+
+
+@app.get("/terms")
+def public_terms():
+    html = """
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Service Agreement — AutoYield Systems</title>
+  <style>
+    :root { --bg:#050915; --panel:#0b1222; --text:#e2e8f0; --muted:#94a3b8; --line:#1f2a44; --cyan:#22d3ee; }
+    * { box-sizing:border-box; }
+    body { margin:0; font-family:Inter,Segoe UI,Arial,sans-serif; background:radial-gradient(1200px 500px at 10% -10%, #0b203a 0%, #050915 55%); color:var(--text); }
+    .wrap { max-width:920px; margin:0 auto; padding:28px 18px 60px; }
+    .panel { background:var(--panel); border:1px solid var(--line); border-radius:14px; padding:24px; }
+    h1 { margin:0 0 14px; font-size:1.5rem; color:#f8fafc; }
+    pre { margin:0; white-space:pre-wrap; word-break:break-word; color:var(--muted); line-height:1.6; font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace; font-size:.95rem; }
+    a { color:var(--cyan); }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="panel">
+      <h1>SERVICE AGREEMENT</h1>
+      <pre>This Service Agreement ("Agreement") governs services provided by AutoYield Systems.
+
+---
+
+1. SERVICES
+
+Provider agrees to perform the following services ("Services"):
+
+   - Online customer acquisition and lead generation for Client's business
+   - Digital outreach campaigns targeting potential customers in Client's niche and location
+   - Delivery of qualified customer leads, calls, or inquiries to Client through dedicated
+     tracking channels (tracking phone number and/or landing page)
+   - Monthly reporting showing results delivered
+
+Provider will begin Services within [X] business days of receiving full payment.
+
+---
+
+2. PAYMENT TERMS
+
+   a) Client agrees to pay Provider the amount of $[AMOUNT] per [month/week/per lead]
+      for the Services described above.
+
+   b) Payment is due BEFORE Services begin. Provider is not obligated to start or
+      continue Services until payment is received and confirmed.
+
+   c) Payment shall be made via [Stripe / PayPal] to [YOUR PAYMENT LINK].
+
+   d) Recurring payments are due on the [DATE] of each month. Failure to pay within
+      5 business days of the due date will result in immediate suspension of Services.
+
+---
+
+3. NO REFUND POLICY
+
+   a) ALL PAYMENTS ARE FINAL AND NON-REFUNDABLE. Due to the nature of digital
+      services, no refunds will be issued once Services have commenced.
+
+   b) Client acknowledges that digital marketing and lead generation services involve
+      real costs, labor, and resources that are expended immediately upon commencement
+      of Services and cannot be recovered.
+
+   c) In the event Client initiates a chargeback or payment dispute with their payment
+      provider after Services have commenced, Client agrees that this Agreement serves
+      as documented evidence that Services were agreed upon and delivered, and that
+      Client waived their right to a refund by signing this Agreement.
+
+   d) Provider reserves the right to pursue legal action and recover all costs,
+      including attorney fees, in the event of a fraudulent chargeback.
+
+---
+
+4. RESULTS DISCLAIMER
+
+   a) Provider does not guarantee a specific number of customers, sales, or revenue
+      for Client. Digital marketing results vary based on factors outside Provider's
+      control including but not limited to: Client's market, competition, pricing,
+      and product/service quality.
+
+   b) Provider guarantees that outreach campaigns will be actively run and that
+      all tracking infrastructure will be set up and operational.
+
+   c) Provider will deliver monthly reports showing activity, leads generated,
+      and calls/inquiries tracked.
+
+---
+
+5. CLIENT RESPONSIBILITIES
+
+   Client agrees to:
+
+   a) Respond to leads and inquiries in a timely manner (within 24 hours).
+   b) Provide accurate business information necessary for campaign setup.
+   c) Not interfere with or attempt to replicate Provider's systems or methods.
+   d) Keep all campaign strategies, messaging, and methods confidential.
+
+---
+
+6. TERM AND TERMINATION
+
+   a) This Agreement begins on the date of first payment and continues on a
+      [monthly / weekly] basis until either party provides written notice of
+      termination.
+
+   b) Either party may terminate this Agreement with [7 / 14 / 30] days written
+      notice via email.
+
+   c) Termination does not entitle Client to a refund for any period already paid.
+
+   d) Provider may terminate immediately and without notice if Client engages in
+      abusive, fraudulent, or illegal activity.
+
+---
+
+7. CONFIDENTIALITY
+
+Both parties agree to keep the terms of this Agreement and any proprietary business
+information confidential. Neither party shall disclose the other's business methods,
+strategies, or client data to any third party without written consent.
+
+---
+
+8. INTELLECTUAL PROPERTY
+
+All systems, tools, scripts, campaigns, and methods developed by Provider remain
+the sole intellectual property of Provider. Client receives no ownership rights
+over Provider's systems or methods.
+
+---
+
+9. LIMITATION OF LIABILITY
+
+Provider's total liability under this Agreement shall not exceed the total amount
+paid by Client in the most recent 30-day period. Provider is not liable for any
+indirect, incidental, or consequential damages.
+
+---
+
+10. GOVERNING LAW
+
+This Agreement shall be governed by the laws of the State of Texas. Any disputes
+shall be resolved in the courts of [YOUR COUNTY], Texas.
+
+---
+
+11. ENTIRE AGREEMENT
+
+This Agreement constitutes the entire agreement between the parties and supersedes
+all prior discussions, representations, or agreements. Any modifications must be
+made in writing and signed by both parties.
+</pre>
+    </div>
+  </div>
+</body>
+</html>
+"""
+    return render_template_string(html)
+
+
+@app.get("/checkout")
+def public_checkout():
+    selected = (request.args.get("plan") or "trial").strip().lower()
+    if selected not in {"trial", "monthly"}:
+        selected = "trial"
+    err = (request.args.get("err") or "").strip()
+    html = """
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Checkout — AutoYield Systems</title>
+  <style>
+    :root { --bg:#050915; --panel:#0b1222; --panel2:#101a30; --text:#e2e8f0; --muted:#94a3b8; --line:#1f2a44; --cyan:#22d3ee; --green:#34d399; --warn:#f59e0b; }
+    * { box-sizing:border-box; }
+    html, body { min-height:100%; }
+    body { margin:0; font-family:Inter,Segoe UI,Arial,sans-serif; background:
+      radial-gradient(1300px 650px at 10% -10%, #0b203a 0%, transparent 60%),
+      radial-gradient(900px 500px at 90% 120%, #2a1150 0%, transparent 62%),
+      linear-gradient(180deg, #050915 0%, #040711 100%);
+      color:var(--text);
+    }
+    .wrap { min-height:100vh; max-width:900px; margin:0 auto; padding:28px 18px 60px; display:flex; align-items:center; }
+    .panel { background:var(--panel); border:1px solid var(--line); border-radius:14px; padding:22px; }
+    h1 { margin:0 0 8px; font-size:1.6rem; color:#f8fafc; }
+    .sub { color:var(--muted); margin:0 0 18px; }
+    .plans { display:grid; grid-template-columns:repeat(auto-fit,minmax(250px,1fr)); gap:12px; margin:10px 0 16px; }
+    .card { border:1px solid var(--line); border-radius:12px; padding:14px; background:var(--panel2); cursor:pointer; display:block; text-decoration:none; color:inherit; }
+    .card.active { border-color:var(--cyan); box-shadow:0 0 0 1px rgba(34,211,238,.35) inset; }
+    .name { font-size:1.02rem; color:#f8fafc; margin:0 0 6px; }
+    .price { margin:0; color:var(--green); font-weight:700; }
+    .note { color:var(--muted); font-size:.94rem; margin-top:5px; }
+    .row { margin-top:14px; }
+    .agree-wrap { margin-top:16px; width:100%; display:flex; justify-content:center; align-items:center; }
+    .agree {
+      display:inline-flex;
+      gap:10px;
+      align-items:center;
+      justify-content:center;
+      width:max-content;
+      max-width:100%;
+      margin:0 auto;
+      color:var(--muted);
+      text-align:center;
+      padding:10px 14px;
+      border:1px solid var(--line);
+      border-radius:10px;
+      background:rgba(16, 26, 48, 0.45);
+    }
+    .agree label { text-align:center; }
+    .agree a { color:var(--cyan); }
+    .btn { margin-top:14px; border:0; border-radius:10px; padding:12px 16px; font-weight:700; background:var(--cyan); color:#001119; cursor:pointer; width:100%; }
+    .btn:disabled { background:#334155; color:#94a3b8; cursor:not-allowed; }
+    .err { margin-bottom:10px; color:#fecaca; background:#3a1118; border:1px solid #7f1d1d; border-radius:10px; padding:10px; }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="panel">
+      <h1>Checkout</h1>
+      <p class="sub">Choose a plan, accept the service agreement, and continue to secure Stripe checkout.</p>
+      {% if err %}
+      <div class="err">{{ err }}</div>
+      {% endif %}
+      <form method="post" action="{{ url_for('public_checkout_post') }}">
+        <input type="hidden" id="plan" name="plan" value="{{ selected }}" />
+        <div class="plans">
+          <a href="#" class="card {% if selected == 'trial' %}active{% endif %}" data-plan="trial">
+            <p class="name">14-Day Trial</p>
+            <p class="price">$300 one time payment</p>
+            <p class="note">One-time charge via Stripe hosted checkout.</p>
+          </a>
+          <a href="#" class="card {% if selected == 'monthly' %}active{% endif %}" data-plan="monthly">
+            <p class="name">Monthly Plan</p>
+            <p class="price">$500 per month recurring subscription</p>
+            <p class="note">Billed monthly through Stripe subscription checkout.</p>
+          </a>
+        </div>
+        <div class="agree-wrap">
+          <div class="row agree">
+            <input id="agree" name="agree" type="checkbox" value="yes" />
+            <label for="agree">I agree to the <a href="{{ url_for('public_terms') }}" target="_blank" rel="noopener">Service Agreement</a></label>
+          </div>
+        </div>
+        <button id="payBtn" type="submit" class="btn" disabled>Pay Now</button>
+      </form>
+    </div>
+  </div>
+  <script>
+    const cards = Array.from(document.querySelectorAll(".card"));
+    const planInput = document.getElementById("plan");
+    const agree = document.getElementById("agree");
+    const payBtn = document.getElementById("payBtn");
+    cards.forEach((card) => {
+      card.addEventListener("click", (e) => {
+        e.preventDefault();
+        const p = card.getAttribute("data-plan");
+        planInput.value = p;
+        cards.forEach(c => c.classList.remove("active"));
+        card.classList.add("active");
+      });
+    });
+    function syncBtn() { payBtn.disabled = !agree.checked; }
+    agree.addEventListener("change", syncBtn);
+    syncBtn();
+  </script>
+</body>
+</html>
+"""
+    return render_template_string(html, selected=selected, err=err)
+
+
+@app.post("/checkout")
+def public_checkout_post():
+    plan = (request.form.get("plan") or "").strip().lower()
+    agreed = (request.form.get("agree") or "").strip().lower() in {"yes", "on", "true", "1"}
+    if plan not in {"trial", "monthly"}:
+        return redirect(url_for("public_checkout", err="Please choose a valid plan."))
+    if not agreed:
+        return redirect(url_for("public_checkout", plan=plan, err="You must agree to the Service Agreement."))
+    if not stripe.api_key:
+        return redirect(url_for("public_checkout", plan=plan, err="Stripe is not configured."))
+
+    # Court/audit trace before redirecting to Stripe Checkout.
+    try:
+        log_system_event(
+            source="checkout",
+            action="agreement_accepted",
+            detail=f"timestamp={datetime.now(timezone.utc).isoformat()} plan={plan} agreement_accepted=true",
+            level="info",
+        )
+    except Exception as exc:
+        _record_error("checkout", "agreement_log", exc)
+
+    success_url = request.url_root.rstrip("/") + url_for("public_checkout_success")
+    cancel_url = request.url_root.rstrip("/") + url_for("public_checkout")
+
+    try:
+        if plan == "monthly":
+            price_id = (STRIPE_PRICE_MONTH_500 or "").strip()
+            if not price_id:
+                return redirect(
+                    url_for("public_checkout", plan=plan, err="Monthly plan is not configured in Stripe.")
+                )
+            line_items = [{"price": price_id, "quantity": 1}]
+            mode = "subscription"
+        else:
+            price_id = (STRIPE_PRICE_TRIAL_300 or "").strip()
+            if not price_id:
+                return redirect(
+                    url_for("public_checkout", plan=plan, err="Trial plan is not configured in Stripe.")
+                )
+            line_items = [{"price": price_id, "quantity": 1}]
+            mode = "payment"
+
+        session = stripe.checkout.Session.create(
+            payment_method_types=["card"],
+            line_items=line_items,
+            mode=mode,
+            success_url=success_url,
+            cancel_url=cancel_url,
+            metadata={
+                "plan": plan,
+                "agreement_accepted": "true",
+                "accepted_at": datetime.now(timezone.utc).isoformat(),
+            },
+        )
+        checkout_url = getattr(session, "url", None)
+        if not checkout_url:
+            try:
+                checkout_url = session["url"]
+            except Exception:
+                checkout_url = None
+        if not checkout_url:
+            return redirect(url_for("public_checkout", plan=plan, err="Unable to open Stripe checkout."))
+        return redirect(str(checkout_url), 303)
+    except Exception as exc:
+        _record_error("checkout", "create_session", exc)
+        return redirect(url_for("public_checkout", plan=plan, err="Could not create Stripe checkout session."))
 
 
 @app.get("/success")

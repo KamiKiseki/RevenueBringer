@@ -2,19 +2,35 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from datetime import datetime
+from pathlib import Path
 
 
 OPS_SIGNATURE = "Operations Team"
 OPS_DESK = "Operations Team"
 BRAND_NAME = "AutoYield Systems"
 DEFAULT_GOVERNING_COUNTY = "Bexar"
-DEFAULT_VAPI_SYSTEM_PROMPT = (
+
+_ELLIOT_PROMPT_PATH = Path(__file__).resolve().parent / "elliot_final_prompt.txt"
+_FALLBACK_VAPI_PROMPT = (
     "You are Elliot with the Operations Team at AutoYield Systems. "
     "You are professional, concise, and corporate. "
     "Your key question is: 'Do you want the 14-day trial for 300, or the full month for 500?' "
     "If they choose one, capture that exact choice as trial_14 or month_30. "
     "Do not use personal or family references."
 )
+
+
+def _load_elliot_vapi_prompt() -> str:
+    try:
+        text = _ELLIOT_PROMPT_PATH.read_text(encoding="utf-8").strip()
+        if text:
+            return text
+    except OSError:
+        pass
+    return _FALLBACK_VAPI_PROMPT
+
+
+DEFAULT_VAPI_SYSTEM_PROMPT = _load_elliot_vapi_prompt()
 
 
 @dataclass(frozen=True)
