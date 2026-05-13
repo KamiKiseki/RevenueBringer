@@ -37,6 +37,7 @@ from automation import (
 )
 from scraper import get_random_target
 from tracking import compute_metrics, create_and_send_daily_report
+from runtime_config import flask_debug_enabled
 from templates import (
     DEFAULT_VAPI_SYSTEM_PROMPT,
     build_ceo_outreach_templates,
@@ -1195,4 +1196,4 @@ def handle_404(_e):
 if __name__ == "__main__":
     init_db()
     port = int(os.environ.get("PORT", 8080))
-    app.run(host="0.0.0.0", port=port, debug=True)
+    app.run(host="0.0.0.0", port=port, debug=flask_debug_enabled())
