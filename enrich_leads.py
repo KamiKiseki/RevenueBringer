@@ -7,6 +7,7 @@ from urllib.parse import urljoin, urlparse
 import requests
 from bs4 import BeautifulSoup
 from sqlalchemy import or_
+from sqlalchemy.exc import OperationalError
 
 from models import Lead, get_session, init_db
 
@@ -169,6 +170,22 @@ def enrich_one(session: requests.Session, lead: Lead) -> str | None:
     return None
 
 
+def _persist_email(lead_id: int, email: str) -> None:
+    for attempt in range(3):
+        try:
+            with get_session() as db:
+                row = db.query(Lead).filter(Lead.id == lead_id).first()
+                if row:
+                    row.email = email
+                    db.add(row)
+                    db.commit()
+            return
+        except OperationalError:
+            if attempt == 2:
+                raise
+            time.sleep(2)
+
+
 def main() -> int:
     init_db()
     scrubbed = scrub_dirty_emails_from_db()
@@ -213,12 +230,7 @@ def main() -> int:
         if email:
             # enrich_one only returns addresses passing _first_valid_email / _email_is_dirty
             found_n += 1
-            with get_session() as db:
-                row = db.query(Lead).filter(Lead.id == lead.id).first()
-                if row:
-                    row.email = email
-                    db.add(row)
-                    db.commit()
+            _persist_email(lead.id, email)
             print(f"[enrich_leads] [{i}/{total}] FOUND {lead.business_name[:60]} | {host} -> {email}")
         else:
             not_found_n += 1

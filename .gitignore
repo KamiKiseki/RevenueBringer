@@ -5,3 +5,9 @@ assets/external/
 .states
 *.py[cod]
 .env 
+*_last_run.log
+enrich_run.out
+sequence_regenerate*.out
+health_reports/
+system_check_report.txt
+

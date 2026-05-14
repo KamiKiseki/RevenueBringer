@@ -1,13 +1,13 @@
 from __future__ import annotations
 
 import os
-from datetime import datetime, timezone
+from datetime import date, datetime, timezone
 from urllib.parse import urlparse
 from enum import Enum
 from uuid import uuid4
 
 from dotenv import load_dotenv
-from sqlalchemy import Boolean, DateTime, Enum as SqlEnum, Integer, String, Text, create_engine, text
+from sqlalchemy import Boolean, Date, DateTime, Enum as SqlEnum, Integer, String, Text, create_engine, text
 from sqlalchemy.orm import DeclarativeBase, Mapped, Session, mapped_column
 
 load_dotenv()
@@ -231,6 +231,28 @@ class DailyReport(Base):
     body: Mapped[str] = mapped_column(Text, nullable=False)
     email_to: Mapped[str | None] = mapped_column(String(255), nullable=True)
     status: Mapped[str] = mapped_column(String(32), nullable=False, default="generated", index=True)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, default=lambda: datetime.now(timezone.utc), index=True
+    )
+
+
+class ClientReport(Base):
+    __tablename__ = "client_reports"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    client_id: Mapped[int] = mapped_column(Integer, nullable=False, index=True)
+    client_email: Mapped[str | None] = mapped_column(String(255), nullable=True, index=True)
+    client_name: Mapped[str] = mapped_column(String(255), nullable=False)
+    client_niche: Mapped[str] = mapped_column(String(80), nullable=False, index=True)
+    client_city: Mapped[str | None] = mapped_column(String(120), nullable=True, index=True)
+    week_start_date: Mapped[date] = mapped_column(Date, nullable=False, index=True)
+    week_end_date: Mapped[date] = mapped_column(Date, nullable=False, index=True)
+    leads_found: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    outreach_sent: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    responses_received: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    calls_made: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    appointments_booked: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    estimated_revenue: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, default=lambda: datetime.now(timezone.utc), index=True
     )

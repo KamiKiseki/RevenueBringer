@@ -32,6 +32,29 @@ def _load_elliot_vapi_prompt() -> str:
 
 DEFAULT_VAPI_SYSTEM_PROMPT = _load_elliot_vapi_prompt()
 
+# Vapi customer.speech.timeout hooks — short nudges when the callee goes quiet.
+ELLIOT_VAPI_IDLE_HOOKS: list[dict] = [
+    {
+        "on": "customer.speech.timeout",
+        "options": {
+            "timeoutSeconds": 10,
+            "triggerMaxCount": 3,
+            "triggerResetMode": "onUserSpeech",
+        },
+        "do": [
+            {
+                "type": "say",
+                "exact": [
+                    "Hey — you still with me?",
+                    "Hello? I can hear you — is now a good time for a quick call?",
+                    "No worries if you're tied up — want me to call back later?",
+                ],
+            }
+        ],
+        "name": "elliot_idle_nudge",
+    }
+]
+
 
 @dataclass(frozen=True)
 class OutreachTemplates:

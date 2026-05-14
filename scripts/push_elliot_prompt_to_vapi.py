@@ -14,6 +14,11 @@ import requests
 from dotenv import load_dotenv
 
 ROOT = Path(__file__).resolve().parents[1]
+if str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
+
+from templates import ELLIOT_VAPI_IDLE_HOOKS
+
 PROMPT_FILE = ROOT / "elliot_final_prompt.txt"
 
 
@@ -53,12 +58,20 @@ def main() -> int:
         msgs.insert(0, {"role": "system", "content": prompt})
     model["messages"] = msgs
 
-    patch = requests.patch(base, headers=headers, json={"model": model}, timeout=60)
+    patch = requests.patch(
+        base,
+        headers=headers,
+        json={"model": model, "hooks": ELLIOT_VAPI_IDLE_HOOKS},
+        timeout=60,
+    )
     if patch.status_code >= 300:
         print(f"PATCH failed: {patch.status_code} {patch.text[:600]}", file=sys.stderr)
         return 1
 
-    print(f"OK: Updated Vapi assistant {aid} system prompt from {PROMPT_FILE.name}")
+    print(
+        f"OK: Updated Vapi assistant {aid} system prompt from {PROMPT_FILE.name} "
+        f"and idle hooks ({len(ELLIOT_VAPI_IDLE_HOOKS)} hook(s))"
+    )
     return 0
 
 

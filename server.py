@@ -41,11 +41,14 @@ from scraper import get_random_target
 from tracking import compute_metrics, create_and_send_daily_report
 from templates import (
     DEFAULT_VAPI_SYSTEM_PROMPT,
+    ELLIOT_VAPI_IDLE_HOOKS,
     build_ceo_outreach_templates,
     build_proof_templates,
     build_service_agreement_text,
     build_tier_offer_templates,
 )
+
+import client_reporting  # noqa: F401 — ship with API; fail import at boot if missing on Railway.
 
 _app_root = os.path.dirname(os.path.abspath(__file__))
 _flask_stub = os.path.join(_app_root, "_flask_stub")
@@ -319,6 +322,7 @@ def _trigger_vapi_call(lead: Lead, system_prompt: str, purpose: str = "general")
                         "firstMessageMode": "assistant-speaks-first",
                         "silenceTimeoutSeconds": 45,
                         "maxDurationSeconds": 300,
+                        "hooks": ELLIOT_VAPI_IDLE_HOOKS,
                         **(
                             {"credentialIds": [VAPI_OPENAI_CREDENTIAL_ID]}
                             if VAPI_OPENAI_CREDENTIAL_ID
@@ -1257,6 +1261,36 @@ def latest_daily_report():
         )
 
 
+@app.get("/reports/client/<int:client_id>")
+def reports_client_dashboard(client_id: int):
+    from client_reporting import render_client_dashboard
+
+    html, status = render_client_dashboard(client_id)
+    return html, status, {"Content-Type": "text/html; charset=utf-8"}
+
+
+@app.get("/reports/proof")
+def reports_proof_dashboard():
+    from client_reporting import render_proof_dashboard
+
+    return render_proof_dashboard(), 200, {"Content-Type": "text/html; charset=utf-8"}
+
+
+@app.route("/reports/generate/<int:client_id>", methods=["GET", "POST"])
+def reports_generate_client(client_id: int):
+    from client_reporting import generate_report_for_client
+
+    payload = request.get_json(force=True, silent=True) or {}
+    send_email = bool(payload.get("send_email")) or request.args.get("send_email", "").strip().lower() in {
+        "1",
+        "true",
+        "yes",
+        "on",
+    }
+    result = generate_report_for_client(client_id, send_email=send_email)
+    return jsonify(result), (200 if result.get("ok") else 404)
+
+
 @app.post("/admin/sanitize-notes")
 def sanitize_notes():
     """
@@ -1749,6 +1783,13 @@ def robots_txt():
     }
 
 
+@app.get("/system/health-check")
+def system_health_check():
+    from health_monitor import run_full_system_check
+
+    return jsonify(run_full_system_check(save_report=True, console=False))
+
+
 @app.get("/health")
 def health():
     out = {"ok": True, "service": "autoyieldsystems", "marketing_site": True}
@@ -1798,6 +1839,13 @@ def handle_404(_e):
 
 # Gunicorn loads `server:app` without running __main__ — ensure tables exist per worker.
 init_db()
+
+try:
+    from health_monitor import start_health_monitor
+
+    start_health_monitor()
+except Exception as exc:
+    print(f"[health_monitor] scheduler not started: {exc}")
 
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 8080))

@@ -135,6 +135,26 @@ def _normalize_greeting_token(raw: str) -> str:
     return t
 
 
+def _looks_like_abbrev_or_allcaps(token: str) -> bool:
+    """True when a greeting token is not a plausible person name (e.g. LRES, PROS)."""
+    letters = re.sub(r"[^A-Za-z]", "", token or "")
+    if len(letters) < 2:
+        return True
+    if letters.isupper():
+        return True
+    vowels = set("aeiouyAEIOUY")
+    if len(letters) <= 5 and not any(c in vowels for c in letters):
+        return True
+    return False
+
+
+def _greeting_first_name(raw: str | None) -> str:
+    token = _normalize_greeting_token(raw or "")
+    if not token or _looks_like_abbrev_or_allcaps(token):
+        return "there"
+    return token
+
+
 def _owner_first_name(owner_name: str) -> str | None:
     o = (owner_name or "").strip()
     if not o:
@@ -144,7 +164,9 @@ def _owner_first_name(owner_name: str) -> str | None:
     first = tokens[0].lower().rstrip(".")
     start = 1 if first in honorifics and len(tokens) > 1 else 0
     pick = _normalize_greeting_token(tokens[start])
-    return pick if pick else None
+    if not pick or _looks_like_abbrev_or_allcaps(pick):
+        return None
+    return pick
 
 
 def _tokens_from_business_name(business_name: str) -> list[str]:
@@ -174,7 +196,7 @@ def _tokens_from_business_name(business_name: str) -> list[str]:
 def _first_name(lead: Lead) -> str:
     owner = _owner_first_name(lead.owner_name or "")
     if owner:
-        return owner
+        return _greeting_first_name(owner)
 
     tokens = _tokens_from_business_name(lead.business_name or "")
     for t in tokens:
@@ -183,7 +205,7 @@ def _first_name(lead: Lead) -> str:
             continue
         if key in _SKIP_GREETING_TOKEN:
             continue
-        return t
+        return _greeting_first_name(t)
     return "there"
 
 
