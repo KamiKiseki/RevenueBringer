@@ -44,6 +44,7 @@ from templates import (
     build_service_agreement_text,
     build_tier_offer_templates,
 )
+from runtime_config import flask_debug_enabled
 
 _app_root = os.path.dirname(os.path.abspath(__file__))
 _flask_stub = os.path.join(_app_root, "_flask_stub")
@@ -1195,4 +1196,4 @@ def handle_404(_e):
 if __name__ == "__main__":
     init_db()
     port = int(os.environ.get("PORT", 8080))
-    app.run(host="0.0.0.0", port=port, debug=True)
+    app.run(host="0.0.0.0", port=port, debug=flask_debug_enabled())
