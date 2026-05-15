@@ -73,6 +73,17 @@ PANDADOC_SENDER_EMAIL = os.getenv("PANDADOC_SENDER_EMAIL", "")
 PANDADOC_API_URL = "https://api.pandadoc.com/public/v1/documents"
 
 
+def _env_flag(name: str, default: bool = False) -> bool:
+    raw = os.getenv(name)
+    if raw is None:
+        return default
+    return raw.strip().lower() in {"1", "true", "yes", "on"}
+
+
+def _flask_debug_enabled() -> bool:
+    return _env_flag("SERVER_DEBUG") or _env_flag("FLASK_DEBUG")
+
+
 def deliver_paid_lead_package(lead: Lead) -> None:
     """Final automation placeholder after payment confirmation."""
     print(f"[DELIVERY] Delivering lead package to {lead.business_name} ({lead.email})")
@@ -634,10 +645,9 @@ def stripe_webhook():
     signature = request.headers.get("Stripe-Signature", "")
 
     try:
-        if STRIPE_WEBHOOK_SECRET:
-            event = stripe.Webhook.construct_event(payload, signature, STRIPE_WEBHOOK_SECRET)
-        else:
-            event = request.get_json(force=True)
+        if not STRIPE_WEBHOOK_SECRET:
+            raise RuntimeError("STRIPE_WEBHOOK_SECRET is required to process Stripe webhooks.")
+        event = stripe.Webhook.construct_event(payload, signature, STRIPE_WEBHOOK_SECRET)
     except Exception as exc:
         _record_error("stripe", "webhook_parse", exc)
         return jsonify({"ok": False, "error": str(exc)}), 400
@@ -1195,4 +1205,4 @@ def handle_404(_e):
 if __name__ == "__main__":
     init_db()
     port = int(os.environ.get("PORT", 8080))
-    app.run(host="0.0.0.0", port=port, debug=True)
+    app.run(host="0.0.0.0", port=port, debug=_flask_debug_enabled())
