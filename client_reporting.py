@@ -12,6 +12,7 @@ from zoneinfo import ZoneInfo
 from sqlalchemy import and_, func, or_
 
 from models import ClientReport, Lead, LeadStatus, MessageEvent, MessageStatus, get_session
+from tracking import verified_inbound_reply_clause
 
 REPORT_TZ = ZoneInfo(os.getenv("HEALTH_MONITOR_TZ", "America/Chicago"))
 PUBLIC_BASE_URL = os.getenv("PUBLIC_BASE_URL", "https://autoyieldsystems.com").rstrip("/")
@@ -127,10 +128,7 @@ def compute_week_metrics(session, *, niche: str, city: str | None, week: WeekRan
             session.query(MessageEvent)
             .filter(
                 MessageEvent.lead_id.in_(lead_ids),
-                or_(
-                    MessageEvent.status == MessageStatus.REPLIED,
-                    and_(MessageEvent.direction == "inbound", MessageEvent.channel == "email"),
-                ),
+                verified_inbound_reply_clause(),
                 MessageEvent.created_at >= week.start_dt,
                 MessageEvent.created_at <= week.end_dt,
             )
@@ -453,9 +451,7 @@ def _aggregate_totals(session) -> dict[str, int]:
         "outreach_sent": session.query(MessageEvent)
         .filter(MessageEvent.direction == "outbound", MessageEvent.channel == "email")
         .count(),
-        "responses_received": session.query(MessageEvent)
-        .filter(MessageEvent.status == MessageStatus.REPLIED)
-        .count(),
+        "responses_received": session.query(MessageEvent).filter(verified_inbound_reply_clause()).count(),
         "calls_made": session.query(Lead).filter(Lead.call_status.isnot(None), Lead.call_status != "").count(),
         "estimated_revenue": 0,
     }
@@ -520,10 +516,19 @@ def _line_chart_svg(points: list[tuple[str, int]]) -> str:
 
 
 def render_client_dashboard(client_id: int) -> tuple[str, int]:
+    from referral_tracking import (
+        client_referral_stats,
+        ensure_client_slug,
+        render_referral_client_panel,
+    )
+
     with get_session() as session:
         client = session.query(Lead).filter(Lead.id == client_id).first()
         if not client:
             return "Client not found.", 404
+        ensure_client_slug(session, client)
+        session.refresh(client)
+        referral_stats = client_referral_stats(session, client_id)
         reports = (
             session.query(ClientReport)
             .filter(ClientReport.client_id == client_id)
@@ -573,14 +578,18 @@ def render_client_dashboard(client_id: int) -> tuple[str, int]:
         {rows_html or '<tr><td colspan="6">No weekly reports yet.</td></tr>'}
       </table>
     </div>
+    {render_referral_client_panel(client, referral_stats)}
     """
     return _dark_page(f"{client.business_name} — AutoYield Reports", body), 200
 
 
 def render_proof_dashboard() -> str:
+    from referral_tracking import aggregate_referral_proof, render_proof_referral_section
+
     with get_session() as session:
         totals = _aggregate_totals(session)
         niches = _niche_breakdown(session)
+        referral_proof = aggregate_referral_proof(session)
     niche_rows = "".join(
         f"<tr><td>{n['niche']}</td><td>{n['leads_found']:,}</td><td>{n['outreach_sent']:,}</td>"
         f"<td>{n['responses_received']:,}</td><td>{n['calls_made']:,}</td><td>${n['estimated_revenue']:,}</td></tr>"
@@ -605,5 +614,6 @@ def render_proof_dashboard() -> str:
         {niche_rows}
       </table>
     </div>
+    {render_proof_referral_section(referral_proof)}
     """
     return _dark_page("AutoYield Proof Dashboard", body)

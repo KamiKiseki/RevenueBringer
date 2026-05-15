@@ -5,14 +5,66 @@ import smtplib
 from datetime import datetime, timezone
 from email.mime.text import MIMEText
 
+from sqlalchemy import and_, exists, not_
+from sqlalchemy.orm import aliased
+
 from models import Agreement, AgreementStatus, DailyReport, Lead, LeadStatus, MessageEvent, MessageStatus, get_session
+
+
+def verified_inbound_reply_clause():
+    """
+    Inbound reply events that follow at least one logged outbound cold email to the same lead.
+    Excludes orphan / test POSTs to /webhooks/reply that never had a matching send in our DB.
+    """
+    prior_out = aliased(MessageEvent)
+    return and_(
+        MessageEvent.status == MessageStatus.REPLIED,
+        MessageEvent.direction == "inbound",
+        MessageEvent.lead_id.isnot(None),
+        exists().where(
+            and_(
+                prior_out.lead_id == MessageEvent.lead_id,
+                prior_out.direction == "outbound",
+                prior_out.channel == "email",
+                prior_out.status == MessageStatus.SENT,
+                prior_out.created_at < MessageEvent.created_at,
+            )
+        ),
+    )
+
+
+def orphan_replied_message_event_clause():
+    """
+    REPLIED rows that are not attributable to a prior logged outbound cold email
+    (test webhooks, mis-posts, or bad data). Safe to delete for cleaner metrics.
+    """
+    prior_out = aliased(MessageEvent)
+    has_prior = exists().where(
+        and_(
+            prior_out.lead_id == MessageEvent.lead_id,
+            prior_out.direction == "outbound",
+            prior_out.channel == "email",
+            prior_out.status == MessageStatus.SENT,
+            prior_out.created_at < MessageEvent.created_at,
+        )
+    )
+    verified = and_(
+        MessageEvent.direction == "inbound",
+        MessageEvent.lead_id.isnot(None),
+        has_prior,
+    )
+    return and_(MessageEvent.status == MessageStatus.REPLIED, not_(verified))
+
+
+def count_verified_replies(session) -> int:
+    return int(session.query(MessageEvent).filter(verified_inbound_reply_clause()).count())
 
 
 def compute_metrics() -> dict[str, int]:
     with get_session() as session:
         total_leads = session.query(Lead).count()
         contacted = session.query(Lead).filter(Lead.status != LeadStatus.QUEUED).count()
-        replies = session.query(MessageEvent).filter(MessageEvent.status == MessageStatus.REPLIED).count()
+        replies = count_verified_replies(session)
         conversions = (
             session.query(Lead)
             .filter(Lead.status.in_([LeadStatus.PAID, LeadStatus.ACTIVE_CLIENT]))

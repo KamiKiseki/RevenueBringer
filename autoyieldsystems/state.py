@@ -27,6 +27,7 @@ from models import (
 )
 from outreach import process_queued_leads
 from scout import fetch_hvac_leads, upsert_scraped_leads
+from tracking import count_verified_replies, verified_inbound_reply_clause
 
 
 def _webhook_base_url() -> str:
@@ -420,11 +421,7 @@ class State(rx.State):
                     self.backend_contacted = int(
                         session.query(Lead).filter(Lead.status != LeadStatus.QUEUED).count()
                     )
-                    self.backend_replies = int(
-                        session.query(MessageEvent)
-                        .filter(MessageEvent.status == MessageStatus.REPLIED)
-                        .count()
-                    )
+                    self.backend_replies = count_verified_replies(session)
                     self.backend_conversions = int(
                         session.query(Lead).filter(Lead.status == LeadStatus.ACTIVE_CLIENT).count()
                     )
@@ -561,7 +558,7 @@ class State(rx.State):
                     session.query(MessageEvent)
                     .filter(
                         MessageEvent.created_at >= start_today,
-                        MessageEvent.status == MessageStatus.REPLIED,
+                        verified_inbound_reply_clause(),
                     )
                     .count()
                 )
@@ -897,7 +894,7 @@ class State(rx.State):
             with get_session() as session:
                 events = (
                     session.query(MessageEvent)
-                    .filter(MessageEvent.status == MessageStatus.REPLIED)
+                    .filter(verified_inbound_reply_clause())
                     .order_by(MessageEvent.id.desc())
                     .limit(25)
                     .all()
@@ -1131,7 +1128,7 @@ class State(rx.State):
             with get_session() as session:
                 rows = (
                     session.query(MessageEvent.subject, func.count(MessageEvent.id))
-                    .filter(MessageEvent.status == MessageStatus.REPLIED)
+                    .filter(verified_inbound_reply_clause())
                     .group_by(MessageEvent.subject)
                     .order_by(func.count(MessageEvent.id).desc())
                     .limit(10)
@@ -1151,7 +1148,7 @@ class State(rx.State):
             with get_session() as session:
                 events = (
                     session.query(MessageEvent)
-                    .filter(MessageEvent.status == MessageStatus.REPLIED)
+                    .filter(verified_inbound_reply_clause())
                     .order_by(MessageEvent.id.desc())
                     .limit(200)
                     .all()

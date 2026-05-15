@@ -1269,11 +1269,72 @@ def reports_client_dashboard(client_id: int):
     return html, status, {"Content-Type": "text/html; charset=utf-8"}
 
 
+@app.post("/reports/client/<int:client_id>/redeem-voucher")
+def reports_redeem_voucher(client_id: int):
+    from referral_tracking import redeem_voucher
+
+    code = (request.form.get("voucher_code") or "").strip()
+    if not code and request.is_json:
+        payload = request.get_json(force=True, silent=True) or {}
+        code = (payload.get("voucher_code") or "").strip()
+    with get_session() as session:
+        result = redeem_voucher(session, client_id, code)
+    if result.get("ok"):
+        return redirect(f"/reports/client/{client_id}", code=303)
+    return jsonify(result), 400
+
+
 @app.get("/reports/proof")
 def reports_proof_dashboard():
     from client_reporting import render_proof_dashboard
 
     return render_proof_dashboard(), 200, {"Content-Type": "text/html; charset=utf-8"}
+
+
+@app.get("/ref/<client_slug>")
+def referral_landing(client_slug: str):
+    from referral_tracking import ensure_client_slug, log_referral_visit, render_referral_landing
+
+    slug = (client_slug or "").strip().lower()
+    with get_session() as session:
+        client = (
+            session.query(Lead)
+            .filter(Lead.client_slug == slug, Lead.status == LeadStatus.ACTIVE_CLIENT)
+            .first()
+        )
+        if not client:
+            return "Referral link not found.", 404, {"Content-Type": "text/plain; charset=utf-8"}
+        ensure_client_slug(session, client)
+        session.refresh(client)
+        click, voucher = log_referral_visit(session, client, request=request)
+        page = render_referral_landing(client, voucher, click)
+    return page, 200, {"Content-Type": "text/html; charset=utf-8"}
+
+
+@app.get("/ref/<client_slug>/go/<int:click_id>")
+def referral_conversion(client_slug: str, click_id: int):
+    from referral_tracking import mark_referral_conversion
+
+    slug = (client_slug or "").strip().lower()
+    with get_session() as session:
+        client = (
+            session.query(Lead)
+            .filter(Lead.client_slug == slug, Lead.status == LeadStatus.ACTIVE_CLIENT)
+            .first()
+        )
+        if not client:
+            return redirect("/", code=302)
+        ok, target = mark_referral_conversion(session, click_id, client)
+    if not ok:
+        return redirect("/", code=302)
+    return redirect(target, code=302)
+
+
+@app.get("/admin/clients")
+def admin_clients_referrals():
+    from referral_tracking import render_admin_clients
+
+    return render_admin_clients(), 200, {"Content-Type": "text/html; charset=utf-8"}
 
 
 @app.route("/reports/generate/<int:client_id>", methods=["GET", "POST"])

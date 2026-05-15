@@ -83,6 +83,7 @@ class Lead(Base):
     transcript_url: Mapped[str | None] = mapped_column(String(1000), nullable=True)
     leads_sent: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     tier_offer_triggered: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    client_slug: Mapped[str | None] = mapped_column(String(120), nullable=True, unique=True, index=True)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         nullable=False,
@@ -94,6 +95,43 @@ class Lead(Base):
         default=lambda: datetime.now(timezone.utc),
         onupdate=lambda: datetime.now(timezone.utc),
     )
+
+
+class ReferralClick(Base):
+    __tablename__ = "referral_clicks"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    client_id: Mapped[int] = mapped_column(Integer, nullable=False, index=True)
+    client_slug: Mapped[str] = mapped_column(String(120), nullable=False, index=True)
+    visitor_ip: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    user_agent: Mapped[str | None] = mapped_column(String(512), nullable=True)
+    source: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    timestamp: Mapped[datetime] = mapped_column(
+        "timestamp",
+        DateTime(timezone=True),
+        nullable=False,
+        default=lambda: datetime.now(timezone.utc),
+        index=True,
+    )
+    converted: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False, index=True)
+    conversion_value: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+
+
+class ReferralVoucher(Base):
+    __tablename__ = "referral_vouchers"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    voucher_code: Mapped[str] = mapped_column(String(32), nullable=False, unique=True, index=True)
+    client_id: Mapped[int] = mapped_column(Integer, nullable=False, index=True)
+    referral_click_id: Mapped[int | None] = mapped_column(Integer, nullable=True, index=True)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        nullable=False,
+        default=lambda: datetime.now(timezone.utc),
+        index=True,
+    )
+    redeemed: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False, index=True)
+    redeemed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
 
 class AutomationSetting(Base):
@@ -342,6 +380,7 @@ def init_db() -> None:
     _ensure_column("leads", "transcript_url", "VARCHAR(1000)")
     _ensure_column("leads", "leads_sent", "INTEGER DEFAULT 0")
     _ensure_column("leads", "tier_offer_triggered", "BOOLEAN DEFAULT 0")
+    _ensure_column("leads", "client_slug", "VARCHAR(120)")
     _ensure_column("agreements", "offer_kind", "VARCHAR(32)")
     _ensure_column("agreements", "stripe_plan_amount_cents", "INTEGER")
     _ensure_column("agreements", "vapi_call_id", "VARCHAR(255)")
@@ -388,6 +427,7 @@ def init_db() -> None:
                         "ALTER TABLE leads ADD COLUMN IF NOT EXISTS tier_offer_triggered BOOLEAN NOT NULL DEFAULT FALSE"
                     )
                 )
+                conn.execute(text("ALTER TABLE leads ADD COLUMN IF NOT EXISTS client_slug VARCHAR(120)"))
         except Exception:
             pass
     if DATABASE_URL.startswith("sqlite"):
