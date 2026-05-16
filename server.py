@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import os
+import hmac
 from datetime import datetime, timezone
 from io import BytesIO
 from uuid import uuid4
@@ -71,6 +72,29 @@ PANDADOC_API_KEY = os.getenv("PANDADOC_API_KEY", "")
 PANDADOC_TEMPLATE_ID = os.getenv("PANDADOC_TEMPLATE_ID", "VrZWq6WpiDVFMkh328wsb9")
 PANDADOC_SENDER_EMAIL = os.getenv("PANDADOC_SENDER_EMAIL", "")
 PANDADOC_API_URL = "https://api.pandadoc.com/public/v1/documents"
+
+
+def _env_flag(name: str, default: bool = False) -> bool:
+    raw = os.getenv(name)
+    if raw is None or not raw.strip():
+        return default
+    return raw.strip().lower() in {"1", "true", "yes", "on"}
+
+
+def _flask_debug_enabled() -> bool:
+    return _env_flag("SERVER_DEBUG", _env_flag("FLASK_DEBUG", False))
+
+
+def _admin_action_authorized() -> bool:
+    expected = os.getenv("ADMIN_ACTION_TOKEN", "").strip()
+    if not expected:
+        return False
+    provided = (request.headers.get("X-Admin-Token") or "").strip()
+    if not provided:
+        auth = (request.headers.get("Authorization") or "").strip()
+        if auth.lower().startswith("bearer "):
+            provided = auth[7:].strip()
+    return bool(provided) and hmac.compare_digest(provided, expected)
 
 
 def deliver_paid_lead_package(lead: Lead) -> None:
@@ -633,11 +657,13 @@ def stripe_webhook():
     payload = request.data
     signature = request.headers.get("Stripe-Signature", "")
 
+    if not STRIPE_WEBHOOK_SECRET:
+        exc = RuntimeError("STRIPE_WEBHOOK_SECRET is required for Stripe webhook verification.")
+        _record_error("stripe", "webhook_unsigned_rejected", exc)
+        return jsonify({"ok": False, "error": str(exc)}), 400
+
     try:
-        if STRIPE_WEBHOOK_SECRET:
-            event = stripe.Webhook.construct_event(payload, signature, STRIPE_WEBHOOK_SECRET)
-        else:
-            event = request.get_json(force=True)
+        event = stripe.Webhook.construct_event(payload, signature, STRIPE_WEBHOOK_SECRET)
     except Exception as exc:
         _record_error("stripe", "webhook_parse", exc)
         return jsonify({"ok": False, "error": str(exc)}), 400
@@ -646,13 +672,23 @@ def stripe_webhook():
     set_setting("stripe_last_event_at", datetime.now(timezone.utc).isoformat())
 
     if event.get("type") == "checkout.session.completed":
-        session_obj = event["data"]["object"]
-        metadata = session_obj.get("metadata", {})
+        session_obj = (event.get("data") or {}).get("object") or {}
+        if not isinstance(session_obj, dict):
+            exc = RuntimeError("Stripe checkout.session.completed payload missing session object.")
+            _record_error("stripe", "webhook_invalid_session", exc)
+            return jsonify({"ok": False, "error": str(exc)}), 400
+        metadata = session_obj.get("metadata") or {}
+        if not isinstance(metadata, dict):
+            metadata = {}
         customer_email = (
             session_obj.get("customer_details", {}).get("email")
             or metadata.get("email")
         )
-        correlation_id = metadata.get("correlation_id") or session_obj.get("client_reference_id")
+        correlation_id = str(metadata.get("correlation_id") or session_obj.get("client_reference_id") or "").strip()
+        if not correlation_id:
+            exc = RuntimeError("Stripe checkout session missing correlation_id/client_reference_id.")
+            _record_error("stripe", "webhook_missing_correlation_id", exc)
+            return jsonify({"ok": False, "error": str(exc)}), 400
         amount_total = int(session_obj.get("amount_total") or 0)
         stripe_tx_id = session_obj.get("payment_intent") or session_obj.get("id")
         print(
@@ -662,10 +698,7 @@ def stripe_webhook():
 
         with get_session() as db:
             agreement = None
-            if correlation_id:
-                agreement = db.query(Agreement).filter(Agreement.correlation_id == correlation_id).first()
-            if agreement is None and customer_email:
-                agreement = db.query(Agreement).filter(Agreement.client_email == customer_email).first()
+            agreement = db.query(Agreement).filter(Agreement.correlation_id == correlation_id).first()
 
             if agreement:
                 agreement.signing_status = AgreementStatus.PAID
@@ -674,10 +707,7 @@ def stripe_webhook():
                 db.add(agreement)
 
             lead = None
-            if correlation_id:
-                lead = db.query(Lead).filter(Lead.correlation_id == correlation_id).first()
-            if lead is None and customer_email:
-                lead = db.query(Lead).filter(Lead.email == customer_email).first()
+            lead = db.query(Lead).filter(Lead.correlation_id == correlation_id).first()
             if lead:
                 lead.status = LeadStatus.ACTIVE_CLIENT
                 _append_lead_log(
@@ -1063,6 +1093,8 @@ def sanitize_notes():
     """
     Remove legacy personal references from notes/audit logs.
     """
+    if not _admin_action_authorized():
+        return jsonify({"ok": False, "error": "admin authorization required"}), 403
     banned = ["dad", "father", "family", "personal brand", "stevie", "san antonio"]
     cleaned = 0
     with get_session() as db:
@@ -1195,4 +1227,4 @@ def handle_404(_e):
 if __name__ == "__main__":
     init_db()
     port = int(os.environ.get("PORT", 8080))
-    app.run(host="0.0.0.0", port=port, debug=True)
+    app.run(host="0.0.0.0", port=port, debug=_flask_debug_enabled())
